@@ -4,24 +4,96 @@ import { useState, useEffect } from "react"
 import { gsap } from "gsap"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Users, TrendingUp, DollarSign, Activity, UserCheck, Settings, BarChart3 } from "lucide-react"
+import { Users, TrendingUp, DollarSign, Activity, UserCheck, Settings, BarChart3, Shield } from "lucide-react"
 import { AdminLayout } from "@/components/admin-layout"
+import { AdminRoute } from "@/components/admin-route"
+import { useRouter } from "next/navigation"
 
 export default function AdminDashboard() {
-  const [stats] = useState({
-    totalUsers: 5420,
-    activeUsers: 4892,
-    totalInvestments: 2584300,
-    totalPaidOut: 1245600,
-    pendingWithdrawals: 45200,
-    todaySignups: 87,
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    activeUsers: 0,
+    totalInvestments: 0,
+    totalPaidOut: 0,
+    pendingWithdrawals: 0,
+    todaySignups: 0,
   })
+  const [recentUsers, setRecentUsers] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const router = useRouter()
 
-  const [recentUsers] = useState([
-    { id: 1, username: "user123", email: "user@example.com", status: "active", joined: "2025-01-15" },
-    { id: 2, username: "investor456", email: "invest@example.com", status: "active", joined: "2025-01-15" },
-    { id: 3, username: "trader789", email: "trade@example.com", status: "pending", joined: "2025-01-14" },
-  ])
+  useEffect(() => {
+    const loadDashboardData = async () => {
+      const token = localStorage.getItem("admin-traders-token")
+      if (!token) {
+        router.push("/admin/login")
+        return
+      }
+
+      try {
+        setLoading(true)
+        const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"
+        
+        // Fetch stats
+        const statsResponse = await fetch(`${API_BASE_URL}/admin/stats`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+
+        if (!statsResponse.ok) {
+          if (statsResponse.status === 401 || statsResponse.status === 403) {
+            localStorage.removeItem("admin-traders-token")
+            localStorage.removeItem("admin-user")
+            router.push("/admin/login")
+            return
+          }
+          throw new Error("Failed to load stats")
+        }
+
+        const statsData = await statsResponse.json()
+        
+        // Calculate today's signups
+        const usersResponse = await fetch(`${API_BASE_URL}/admin/users?limit=100`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+        
+        let todaySignups = 0
+        if (usersResponse.ok) {
+          const usersData = await usersResponse.json()
+          const today = new Date()
+          today.setHours(0, 0, 0, 0)
+          todaySignups = usersData.users.filter((user: any) => {
+            const userDate = new Date(user.createdAt)
+            userDate.setHours(0, 0, 0, 0)
+            return userDate.getTime() === today.getTime()
+          }).length
+          
+          // Get recent users
+          setRecentUsers(usersData.users.slice(0, 5))
+        }
+
+        setStats({
+          totalUsers: statsData.totalUsers || 0,
+          activeUsers: statsData.activeUsers || 0,
+          totalInvestments: statsData.totalInvestments || 0,
+          totalPaidOut: statsData.totalPaidOut || 0,
+          pendingWithdrawals: statsData.pendingWithdrawals || 0,
+          todaySignups,
+        })
+      } catch (err) {
+        console.error("Failed to load dashboard data:", err)
+        setError("Failed to load dashboard data")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadDashboardData()
+  }, [router])
 
   useEffect(() => {
     gsap.from(".admin-stat-card", {
@@ -33,8 +105,29 @@ export default function AdminDashboard() {
     })
   }, [])
 
+  if (loading) {
+    return (
+      <AdminRoute>
+        <AdminLayout>
+          <div className="flex items-center justify-center min-h-[60vh]">
+            <div className="flex flex-col items-center gap-4">
+              <div className="relative">
+                <div className="w-16 h-16 bg-gradient-to-br from-primary to-primary/50 rounded-lg flex items-center justify-center">
+                  <Shield className="w-8 h-8 text-primary-foreground" />
+                </div>
+                <div className="absolute inset-0 bg-primary/30 rounded-lg animate-ping"></div>
+              </div>
+              <p className="text-foreground/70 animate-pulse">Loading dashboard...</p>
+            </div>
+          </div>
+        </AdminLayout>
+      </AdminRoute>
+    )
+  }
+
   return (
-    <AdminLayout>
+    <AdminRoute>
+      <AdminLayout>
       <div className="space-y-8">
         <div>
           <h1 className="text-3xl md:text-4xl font-bold mb-2 font-[family-name:var(--font-orbitron)] glow-cyan">
@@ -42,6 +135,12 @@ export default function AdminDashboard() {
           </h1>
           <p className="text-foreground/70">Platform overview and management</p>
         </div>
+
+        {error && (
+          <div className="p-4 bg-destructive/10 border border-destructive/30 rounded-lg text-destructive">
+            {error}
+          </div>
+        )}
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -76,8 +175,8 @@ export default function AdminDashboard() {
               </div>
               <span className="text-sm text-foreground/60">Total Investments</span>
             </div>
-            <div className="text-3xl font-bold mb-2">${(stats.totalInvestments / 1000000).toFixed(2)}M</div>
-            <div className="text-sm text-green-500">+12.5% this month</div>
+            <div className="text-3xl font-bold mb-2">${(stats.totalInvestments / 1000).toFixed(1)}K</div>
+            <div className="text-sm text-foreground/60">Total invested</div>
           </Card>
 
           <Card className="admin-stat-card p-6 bg-card border-primary/30 card-glow">
@@ -87,7 +186,7 @@ export default function AdminDashboard() {
               </div>
               <span className="text-sm text-foreground/60">Total Paid Out</span>
             </div>
-            <div className="text-3xl font-bold mb-2">${(stats.totalPaidOut / 1000000).toFixed(2)}M</div>
+            <div className="text-3xl font-bold mb-2">${(stats.totalPaidOut / 1000).toFixed(1)}K</div>
             <div className="text-sm text-foreground/60">All-time withdrawals</div>
           </Card>
 
@@ -98,7 +197,7 @@ export default function AdminDashboard() {
               </div>
               <span className="text-sm text-foreground/60">Pending Withdrawals</span>
             </div>
-            <div className="text-3xl font-bold mb-2">${(stats.pendingWithdrawals / 1000).toFixed(1)}K</div>
+            <div className="text-3xl font-bold mb-2">${stats.pendingWithdrawals.toFixed(2)}</div>
             <div className="text-sm text-foreground/60">Requires approval</div>
           </Card>
 
@@ -122,9 +221,12 @@ export default function AdminDashboard() {
             </Button>
           </div>
           <div className="space-y-3">
-            {recentUsers.map((user) => (
-              <div
-                key={user.id}
+            {recentUsers.length === 0 ? (
+              <p className="text-center text-foreground/70 py-8">No users yet</p>
+            ) : (
+              recentUsers.map((user) => (
+                <div
+                  key={user.id || user._id}
                 className="flex items-center justify-between p-4 bg-background/50 rounded-lg border border-primary/20"
               >
                 <div className="flex items-center gap-4">
@@ -144,10 +246,13 @@ export default function AdminDashboard() {
                   >
                     {user.status}
                   </div>
-                  <div className="text-sm text-foreground/60 mt-1">{user.joined}</div>
+                  <div className="text-sm text-foreground/60 mt-1">
+                    {new Date(user.createdAt).toLocaleDateString()}
+                  </div>
                 </div>
               </div>
-            ))}
+              ))
+            )}
           </div>
         </Card>
 
@@ -181,6 +286,7 @@ export default function AdminDashboard() {
           </Card>
         </div>
       </div>
-    </AdminLayout>
+      </AdminLayout>
+    </AdminRoute>
   )
 }

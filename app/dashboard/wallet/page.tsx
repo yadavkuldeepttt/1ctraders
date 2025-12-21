@@ -23,11 +23,15 @@ export default function WalletPage() {
   const { user } = useAuth()
   const [loading, setLoading] = useState(true)
   const [depositAmount, setDepositAmount] = useState("")
+  const [depositPaymentMethod, setDepositPaymentMethod] = useState<"crypto" | "bank">("crypto")
+  const [cryptoAddress, setCryptoAddress] = useState("")
   const [withdrawAmount, setWithdrawAmount] = useState("")
   const [withdrawAddress, setWithdrawAddress] = useState("")
   const [depositLoading, setDepositLoading] = useState(false)
   const [withdrawLoading, setWithdrawLoading] = useState(false)
   const [transactions, setTransactions] = useState<any[]>([])
+  const [depositDialogOpen, setDepositDialogOpen] = useState(false)
+  const [withdrawDialogOpen, setWithdrawDialogOpen] = useState(false)
 
   const wallet = {
     balance: user?.balance || 0,
@@ -73,11 +77,17 @@ export default function WalletPage() {
       return
     }
 
+    if (depositPaymentMethod === "crypto" && !cryptoAddress) {
+      alert("Please enter your crypto wallet address")
+      return
+    }
+
     setDepositLoading(true)
     try {
       const response = await apiClient.createDeposit({
         amount: parseFloat(depositAmount),
-        paymentMethod: "crypto",
+        paymentMethod: depositPaymentMethod,
+        cryptoAddress: depositPaymentMethod === "crypto" ? cryptoAddress : undefined,
       })
 
       if (response.error) {
@@ -85,6 +95,8 @@ export default function WalletPage() {
       } else {
         alert(`Deposit of $${depositAmount} initiated!`)
         setDepositAmount("")
+        setCryptoAddress("")
+        setDepositDialogOpen(false)
         // Reload transactions
         const txResponse = await apiClient.getUserTransactions()
         if (txResponse.data) {
@@ -116,6 +128,7 @@ export default function WalletPage() {
         alert(`Withdrawal of $${withdrawAmount} initiated!`)
         setWithdrawAmount("")
         setWithdrawAddress("")
+        setWithdrawDialogOpen(false)
         // Reload transactions
         const txResponse = await apiClient.getUserTransactions()
         if (txResponse.data) {
@@ -171,7 +184,7 @@ export default function WalletPage() {
               ${wallet.balance.toLocaleString()}
             </div>
             <div className="flex gap-4 justify-center">
-              <Dialog>
+              <Dialog open={depositDialogOpen} onOpenChange={setDepositDialogOpen}>
                 <DialogTrigger asChild>
                   <Button size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90 px-8">
                     <ArrowDownRight className="w-5 h-5 mr-2" />
@@ -195,41 +208,76 @@ export default function WalletPage() {
                         className="bg-input border-primary/30"
                         value={depositAmount}
                         onChange={(e) => setDepositAmount(e.target.value)}
+                        min="0"
+                        step="0.01"
                       />
                     </div>
                     <div className="space-y-2">
                       <Label>Payment Method</Label>
                       <div className="grid grid-cols-2 gap-3">
-                        <Button variant="outline" className="border-primary/50 bg-transparent">
+                        <Button
+                          type="button"
+                          variant={depositPaymentMethod === "bank" ? "default" : "outline"}
+                          className={
+                            depositPaymentMethod === "bank"
+                              ? "bg-primary text-primary-foreground border-primary hover:bg-primary/90"
+                              : "border-primary/50 bg-transparent hover:bg-primary/10"
+                          }
+                          onClick={() => {
+                            setDepositPaymentMethod("bank")
+                            setCryptoAddress("")
+                          }}
+                        >
                           Bank Transfer
                         </Button>
-                        <Button variant="outline" className="border-primary/50 bg-primary/10 text-primary">
-                          Crypto (Primary)
+                        <Button
+                          type="button"
+                          variant={depositPaymentMethod === "crypto" ? "default" : "outline"}
+                          className={
+                            depositPaymentMethod === "crypto"
+                              ? "bg-primary text-primary-foreground border-primary hover:bg-primary/90"
+                              : "border-primary/50 bg-transparent hover:bg-primary/10"
+                          }
+                          onClick={() => setDepositPaymentMethod("crypto")}
+                        >
+                          Crypto
                         </Button>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="cryptoAddress">Crypto Wallet Address</Label>
-                      <Input
-                        id="cryptoAddress"
-                        placeholder="Enter your crypto wallet address (BTC, ETH, USDT)"
-                        className="bg-input border-primary/30"
-                      />
-                      <p className="text-xs text-foreground/60">
-                        Supported: Bitcoin (BTC), Ethereum (ETH), Tether (USDT), and other major cryptocurrencies
-                      </p>
-                    </div>
+                    {depositPaymentMethod === "crypto" && (
+                      <div className="space-y-2">
+                        <Label htmlFor="cryptoAddress">Crypto Wallet Address</Label>
+                        <Input
+                          id="cryptoAddress"
+                          placeholder="Enter your crypto wallet address (BTC, ETH, USDT)"
+                          className="bg-input border-primary/30"
+                          value={cryptoAddress}
+                          onChange={(e) => setCryptoAddress(e.target.value)}
+                        />
+                        <p className="text-xs text-foreground/60">
+                          Supported: Bitcoin (BTC), Ethereum (ETH), Tether (USDT), and other major cryptocurrencies
+                        </p>
+                      </div>
+                    )}
+                    {depositPaymentMethod === "bank" && (
+                      <div className="space-y-2">
+                        <p className="text-sm text-foreground/70">
+                          Bank transfer details will be provided after you confirm the deposit.
+                        </p>
+                      </div>
+                    )}
                     <Button
                       className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
                       onClick={handleDeposit}
+                      disabled={depositLoading || !depositAmount || parseFloat(depositAmount) <= 0 || (depositPaymentMethod === "crypto" && !cryptoAddress)}
                     >
-                      Confirm Deposit
+                      {depositLoading ? "Processing..." : "Confirm Deposit"}
                     </Button>
                   </div>
                 </DialogContent>
               </Dialog>
 
-              <Dialog>
+              <Dialog open={withdrawDialogOpen} onOpenChange={setWithdrawDialogOpen}>
                 <DialogTrigger asChild>
                   <Button size="lg" variant="outline" className="border-primary/50 px-8 bg-transparent">
                     <ArrowUpRight className="w-5 h-5 mr-2" />
@@ -327,8 +375,17 @@ export default function WalletPage() {
                   </div>
                   <div>
                     <div className="font-bold capitalize">{transaction.type}</div>
-                    <div className="text-sm text-foreground/60">{transaction.date}</div>
-                    <div className="text-xs text-foreground/50 font-mono">{transaction.txHash}</div>
+                    <div className="text-sm text-foreground/60">
+                      {transaction.createdAt ? new Date(transaction.createdAt).toLocaleDateString() : "N/A"}
+                    </div>
+                    {transaction.txHash && (
+                      <div className="text-xs text-foreground/50 font-mono break-all">{transaction.txHash}</div>
+                    )}
+                    {transaction.withdrawalAddress && (
+                      <div className="text-xs text-foreground/50 font-mono break-all">
+                        To: {transaction.withdrawalAddress}
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="text-right">

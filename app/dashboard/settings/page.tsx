@@ -1,19 +1,33 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { DashboardLayout } from "@/components/dashboard-layout"
+import { ProtectedRoute } from "@/components/protected-route"
+import { useAuth } from "@/contexts/AuthContext"
+import { apiClient } from "@/lib/api-client"
 import { User, Mail, Bell, Shield, Smartphone } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
 
 export default function SettingsPage() {
+  const { user, refreshUser } = useAuth()
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
+  
   const [profile, setProfile] = useState({
-    username: "johndoe",
-    email: "john@example.com",
-    phone: "+1234567890",
+    username: "",
+    email: "",
+    phone: "",
+  })
+
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
   })
 
   useEffect(() => {
@@ -22,6 +36,10 @@ export default function SettingsPage() {
         username: user.username || "",
         email: user.email || "",
         phone: user.phone || "",
+      })
+      setSecurity({
+        twoFactorAuth: user.twoFactorEnabled || false,
+        loginAlerts: true,
       })
     }
   }, [user])
@@ -52,11 +70,27 @@ export default function SettingsPage() {
         return
       }
 
-      // TODO: Implement API call to update profile
-      // For now, just update local state
-      await refreshUser()
-      setSuccess("Profile updated successfully!")
-      setTimeout(() => setSuccess(null), 3000)
+      // Validate email
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (profile.email && !emailRegex.test(profile.email)) {
+        setError("Please enter a valid email address")
+        setLoading(false)
+        return
+      }
+
+      const response = await apiClient.updateProfile({
+        username: profile.username,
+        email: profile.email,
+        phone: profile.phone,
+      })
+
+      if (response.error) {
+        setError(response.error)
+      } else {
+        setSuccess("Profile updated successfully!")
+        await refreshUser()
+        setTimeout(() => setSuccess(null), 3000)
+      }
     } catch (err) {
       setError("Failed to update profile")
     } finally {
@@ -65,13 +99,80 @@ export default function SettingsPage() {
   }
 
   const handleSaveNotifications = () => {
-    console.log("[v0] Notifications updated:", notifications)
-    alert("Notification settings updated!")
+    // Notifications are stored locally for now
+    // In the future, this can be saved to backend
+    setSuccess("Notification settings saved!")
+    setTimeout(() => setSuccess(null), 3000)
   }
 
-  const handleSaveSecurity = () => {
-    console.log("[v0] Security updated:", security)
-    alert("Security settings updated!")
+  const handleSaveSecurity = async () => {
+    setLoading(true)
+    setError(null)
+    setSuccess(null)
+
+    try {
+      // Update two-factor authentication
+      const response = await apiClient.updateTwoFactor(security.twoFactorAuth)
+      
+      if (response.error) {
+        setError(response.error)
+      } else {
+        setSuccess("Security settings updated!")
+        await refreshUser()
+        setTimeout(() => setSuccess(null), 3000)
+      }
+    } catch (err) {
+      setError("Failed to update security settings")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleChangePassword = async () => {
+    setLoading(true)
+    setError(null)
+    setSuccess(null)
+
+    try {
+      if (!passwordData.currentPassword || !passwordData.newPassword) {
+        setError("Please fill in all password fields")
+        setLoading(false)
+        return
+      }
+
+      if (passwordData.newPassword.length < 6) {
+        setError("New password must be at least 6 characters")
+        setLoading(false)
+        return
+      }
+
+      if (passwordData.newPassword !== passwordData.confirmPassword) {
+        setError("New passwords do not match")
+        setLoading(false)
+        return
+      }
+
+      const response = await apiClient.changePassword({
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword,
+      })
+
+      if (response.error) {
+        setError(response.error)
+      } else {
+        setSuccess("Password changed successfully!")
+        setPasswordData({
+          currentPassword: "",
+          newPassword: "",
+          confirmPassword: "",
+        })
+        setTimeout(() => setSuccess(null), 3000)
+      }
+    } catch (err) {
+      setError("Failed to change password")
+    } finally {
+      setLoading(false)
+    }
   }
 
   if (!user) {
@@ -166,8 +267,12 @@ export default function SettingsPage() {
               />
             </div>
 
-            <Button onClick={handleSaveProfile} className="bg-primary text-primary-foreground hover:bg-primary/90">
-              Save Changes
+            <Button 
+              onClick={handleSaveProfile} 
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
+              disabled={loading}
+            >
+              {loading ? "Saving..." : "Save Changes"}
             </Button>
           </div>
         </Card>
@@ -211,30 +316,64 @@ export default function SettingsPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="currentPassword">Change Password</Label>
+              <Label>Change Password</Label>
               <Input
                 id="currentPassword"
                 type="password"
                 placeholder="Current password"
                 className="bg-input border-primary/30 mb-2"
+                value={passwordData.currentPassword}
+                onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                disabled={loading}
               />
               <Input
                 id="newPassword"
                 type="password"
                 placeholder="New password"
                 className="bg-input border-primary/30 mb-2"
+                value={passwordData.newPassword}
+                onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                disabled={loading}
+                minLength={6}
               />
               <Input
                 id="confirmPassword"
                 type="password"
                 placeholder="Confirm new password"
                 className="bg-input border-primary/30"
+                value={passwordData.confirmPassword}
+                onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                disabled={loading}
               />
+              {passwordData.newPassword && passwordData.newPassword.length < 6 && (
+                <p className="text-sm text-foreground/60">
+                  Password must be at least 6 characters
+                </p>
+              )}
+              {passwordData.newPassword && passwordData.confirmPassword && passwordData.newPassword !== passwordData.confirmPassword && (
+                <p className="text-sm text-destructive">
+                  Passwords do not match
+                </p>
+              )}
             </div>
 
-            <Button onClick={handleSaveSecurity} className="bg-primary text-primary-foreground hover:bg-primary/90">
-              Update Security Settings
-            </Button>
+            <div className="flex gap-3">
+              <Button 
+                onClick={handleChangePassword} 
+                className="bg-primary text-primary-foreground hover:bg-primary/90"
+                disabled={loading || !passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword}
+              >
+                {loading ? "Updating..." : "Change Password"}
+              </Button>
+              <Button 
+                onClick={handleSaveSecurity} 
+                variant="outline"
+                className="border-primary/50 bg-transparent"
+                disabled={loading}
+              >
+                Update Security Settings
+              </Button>
+            </div>
           </div>
         </Card>
 
@@ -312,6 +451,7 @@ export default function SettingsPage() {
             <Button
               onClick={handleSaveNotifications}
               className="bg-primary text-primary-foreground hover:bg-primary/90"
+              disabled={loading}
             >
               Save Notification Settings
             </Button>

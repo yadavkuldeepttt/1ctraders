@@ -41,5 +41,5 @@ exports.INVESTMENT_PLANS = [
 ];
 // Constants for investment limits
 exports.MAX_ROI_PERCENTAGE = 300; // 300% ROI limit
-exports.MAX_COMMISSION_PERCENTAGE = 400; // 400% commission limit
+exports.MAX_COMMISSION_PERCENTAGE = 400; // 400% commission limit (if networking is active)
 //# sourceMappingURL=Investment.js.map

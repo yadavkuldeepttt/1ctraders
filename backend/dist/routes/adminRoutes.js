@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const adminController_1 = require("../controllers/adminController");
+const adminTaskController_1 = require("../controllers/adminTaskController");
 const authMiddleware_1 = require("../middleware/authMiddleware");
 const adminMiddleware_1 = require("../middleware/adminMiddleware");
 const router = (0, express_1.Router)();
@@ -12,5 +13,11 @@ router.get("/users", adminController_1.getAllUsers);
 router.patch("/users/:userId/status", adminController_1.updateUserStatus);
 router.get("/withdrawals/pending", adminController_1.getPendingWithdrawals);
 router.post("/withdrawals/:transactionId/approve", adminController_1.approveWithdrawal);
+// Task management routes
+router.get("/tasks", adminTaskController_1.getAllTasks);
+router.get("/tasks/:taskId", adminTaskController_1.getTask);
+router.post("/tasks", adminTaskController_1.createTask);
+router.patch("/tasks/:taskId", adminTaskController_1.updateTask);
+router.delete("/tasks/:taskId", adminTaskController_1.deleteTask);
 exports.default = router;
 //# sourceMappingURL=adminRoutes.js.map

@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005/api"
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"
 
 export interface ApiResponse<T> {
   data?: T
@@ -17,7 +17,7 @@ class ApiClient {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
-    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null
+    const token = typeof window !== "undefined" ? localStorage.getItem("traders-token") : null
 
     const headers: HeadersInit = {
       "Content-Type": "application/json",
@@ -80,6 +80,27 @@ class ApiClient {
   async verifyToken() {
     return this.request<{ valid: boolean; user?: any }>("/auth/verify", {
       method: "GET",
+    })
+  }
+
+  async updateProfile(profileData: { username?: string; email?: string; phone?: string }) {
+    return this.request<any>("/auth/profile", {
+      method: "PATCH",
+      body: JSON.stringify(profileData),
+    })
+  }
+
+  async changePassword(passwordData: { currentPassword: string; newPassword: string }) {
+    return this.request<any>("/auth/password", {
+      method: "PATCH",
+      body: JSON.stringify(passwordData),
+    })
+  }
+
+  async updateTwoFactor(twoFactorEnabled: boolean) {
+    return this.request<any>("/auth/two-factor", {
+      method: "PATCH",
+      body: JSON.stringify({ twoFactorEnabled }),
     })
   }
 

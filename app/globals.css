@@ -235,3 +235,49 @@
     animation: shimmer 2s infinite;
   }
 }
+
+/* Custom scrollbar styling - thin and theme-colored */
+.scroll::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.scroll::-webkit-scrollbar-track {
+  background: rgba(37, 37, 37, 0.3);
+  border-radius: 10px;
+}
+
+.scroll::-webkit-scrollbar-thumb {
+  background: rgba(0, 212, 212, 0.6);
+  border-radius: 10px;
+  transition: background 0.2s ease;
+}
+
+.scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 212, 212, 0.9);
+}
+
+/* Firefox scrollbar */
+.scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 212, 212, 0.6) rgba(37, 37, 37, 0.3);
+}
+
+/* Body scrollbar */
+body::-webkit-scrollbar {
+  width: 6px;
+}
+
+body::-webkit-scrollbar-track {
+  background: rgba(37, 37, 37, 0.3);
+}
+
+body::-webkit-scrollbar-thumb {
+  background: rgba(0, 212, 212, 0.6);
+  border-radius: 10px;
+  transition: background 0.2s ease;
+}
+
+body::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 212, 212, 0.9);
+}

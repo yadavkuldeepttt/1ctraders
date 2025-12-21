@@ -10,6 +10,9 @@ export interface User {
   totalInvested: number
   totalEarnings: number
   totalWithdrawn: number
+  points: number // Points earned from tasks
+  pendingPoints: number // Points pending conversion to money
+  role: "user" | "admin" // User role
   status: "active" | "suspended" | "pending"
   emailVerified: boolean
   twoFactorEnabled: boolean

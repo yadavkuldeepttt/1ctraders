@@ -4,7 +4,6 @@ type ControllerResponse = Response | void
 import mongoose from "mongoose"
 import { TaskModel, UserTaskModel } from "../db/models/TaskModel"
 import { UserModel } from "../db/models/UserModel"
-import { TransactionModel } from "../db/models/TransactionModel"
 
 export const getAvailableTasks = async (req: Request, res: Response): Promise<ControllerResponse> => {
   try {
@@ -104,44 +103,48 @@ export const completeTask = async (req: Request, res: Response): Promise<Control
       return res.status(400).json({ error: "Task already completed" })
     }
 
-    if (existingUserTask) {
-      existingUserTask.status = "pending"
-      existingUserTask.completedAt = new Date()
-      await existingUserTask.save()
-      return res.json({
-        message: "Task completion submitted for verification",
-        userTask: existingUserTask.toJSON(),
+    // Check if user has already completed 5 tasks (limit per user)
+    const completedTasksCount = await UserTaskModel.countDocuments({
+      userId: new mongoose.Types.ObjectId(userId),
+      status: "completed",
+    })
+
+    if (completedTasksCount >= 5) {
+      return res.status(400).json({ 
+        error: "You have already completed the maximum of 5 tasks. Complete your investments to earn more!" 
       })
     }
 
-    const userTask = await UserTaskModel.create({
-      userId: new mongoose.Types.ObjectId(userId),
-      taskId: new mongoose.Types.ObjectId(taskId),
-      status: "pending",
-      completedAt: new Date(),
-      rewardClaimed: false,
-    })
+    // Auto-complete task immediately (automated system, no manual verification needed)
+    let userTask
+    if (existingUserTask) {
+      existingUserTask.status = "completed"
+      existingUserTask.completedAt = new Date()
+      existingUserTask.rewardClaimed = true
+      await existingUserTask.save()
+      userTask = existingUserTask
+    } else {
+      userTask = await UserTaskModel.create({
+        userId: new mongoose.Types.ObjectId(userId),
+        taskId: new mongoose.Types.ObjectId(taskId),
+        status: "completed",
+        completedAt: new Date(),
+        rewardClaimed: true,
+      })
+    }
 
-    // Award reward (in real app, this would be verified first)
+    // Award points immediately (will be converted to money after delay)
     const user = await UserModel.findById(userId)
     if (user) {
-      user.balance += task.reward
-      user.totalEarnings += task.reward
+      // Add points to pending (will convert to money after hours)
+      user.pendingPoints = (user.pendingPoints || 0) + task.reward
       await user.save()
 
-      // Create transaction record
-      await TransactionModel.create({
-        userId: new mongoose.Types.ObjectId(userId),
-        type: "task",
-        amount: task.reward,
-        status: "completed",
-        description: `Task reward: ${task.title}`,
-        completedAt: new Date(),
-      })
+      // Note: Points will be converted to money automatically by the scheduler
     }
 
     res.json({
-      message: "Task completed and reward awarded",
+      message: "Task completed successfully! Points will be converted to money automatically.",
       userTask: userTask.toJSON(),
     })
   } catch (error) {

@@ -35,19 +35,20 @@ export default function DashboardPage() {
   })
 
 
-  const [investments] = useState([
-    { id: 1, type: "Oil", amount: 2000, roi: 3.5, daily: 70, status: "active", icon: CircleDollarSign },
-    { id: 2, type: "Shares", amount: 3000, roi: 4.2, daily: 126, status: "active", icon: BarChart3 },
-    { id: 3, type: "Crypto", amount: 2500, roi: 5.8, daily: 145, status: "active", icon: Bitcoin },
-    { id: 4, type: "AI Trading", amount: 2500, roi: 7.2, daily: 180, status: "active", icon: Cpu },
-  ])
+  const [investments, setInvestments] = useState<any[]>([])
+  const [recentActivity, setRecentActivity] = useState<any[]>([])
 
-  const [recentActivity] = useState([
-    { id: 1, type: "deposit", amount: 500, date: "2025-01-15", status: "completed" },
-    { id: 2, type: "roi", amount: 145, date: "2025-01-15", status: "completed" },
-    { id: 3, type: "referral", amount: 50, date: "2025-01-14", status: "completed" },
-    { id: 4, type: "withdrawal", amount: 200, date: "2025-01-14", status: "pending" },
-  ])
+  // Icon mapping for investment types
+  const getInvestmentIcon = (type: string) => {
+    const iconMap: Record<string, any> = {
+      oil: CircleDollarSign,
+      shares: BarChart3,
+      crypto: Bitcoin,
+      "ai trading": Cpu,
+      "ai": Cpu,
+    }
+    return iconMap[type.toLowerCase()] || CircleDollarSign
+  }
 
   useEffect(() => {
     const loadDashboardData = async () => {
@@ -69,13 +70,48 @@ export default function DashboardPage() {
         // Load user investments
         const investmentsResponse = await apiClient.getUserInvestments()
         if (investmentsResponse.data) {
-          const activeInvestments = investmentsResponse.data.investments.filter(
-            (inv: any) => inv.status === "active"
-          ).length
+          const userInvestments = investmentsResponse.data.investments || []
+          const activeInvestments = userInvestments.filter((inv: any) => inv.status === "active").length
+          
+          // Map investments with icons
+          const investmentsWithIcons = userInvestments
+            .filter((inv: any) => inv.status === "active")
+            .slice(0, 4) // Show only first 4 active investments
+            .map((inv: any) => ({
+              id: inv.id || inv._id,
+              type: inv.packageName || inv.type || "Investment",
+              amount: inv.amount || 0,
+              roi: inv.roiPercentage || 0,
+              daily: inv.dailyReturn || 0,
+              status: inv.status,
+              icon: getInvestmentIcon(inv.packageName || inv.type || ""),
+            }))
+          
+          setInvestments(investmentsWithIcons)
           setStats((prev) => ({
             ...prev,
             activeInvestments,
           }))
+        }
+
+        // Load recent transactions for activity
+        const transactionsResponse = await apiClient.getUserTransactions()
+        if (transactionsResponse.data) {
+          const transactions = transactionsResponse.data.transactions || []
+          
+          // Map transactions to activity format
+          const activity = transactions.slice(0, 10).map((tx: any) => ({
+            id: tx.id || tx._id,
+            type: tx.type === "deposit" ? "deposit" : 
+                  tx.type === "withdrawal" ? "withdrawal" :
+                  tx.type === "roi" ? "roi" :
+                  tx.type === "referral" || tx.type === "commission" ? "referral" : tx.type,
+            amount: tx.amount || 0,
+            date: tx.createdAt ? new Date(tx.createdAt).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
+            status: tx.status || "completed",
+          }))
+          
+          setRecentActivity(activity)
         }
 
         // Load referral stats
@@ -249,33 +285,44 @@ export default function DashboardPage() {
             </Link>
           </div>
           <div className="space-y-4">
-            {investments.map((investment) => {
-              const Icon = investment.icon
-              return (
-                <div
-                  key={investment.id}
-                  className="investment-item flex items-center justify-between p-4 bg-background/50 rounded-lg border border-primary/20 hover:border-primary/40 transition-colors"
-                >
-                  <div className="flex items-center gap-4 flex-1">
-                    <div className="p-3 bg-primary/20 rounded-lg">
-                      <Icon className="w-6 h-6 text-primary" />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-bold mb-1">{investment.type}</h3>
-                      <div className="flex items-center gap-4 text-sm text-foreground/60">
-                        <span>Amount: ${investment.amount}</span>
-                        <span>•</span>
-                        <span>ROI: {investment.roi}%</span>
+            {investments.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-foreground/70 mb-4">No active investments yet</p>
+                <Link href="/dashboard/invest">
+                  <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
+                    Start Investing
+                  </Button>
+                </Link>
+              </div>
+            ) : (
+              investments.map((investment) => {
+                const Icon = investment.icon
+                return (
+                  <div
+                    key={investment.id}
+                    className="investment-item flex items-center justify-between p-4 bg-background/50 rounded-lg border border-primary/20 hover:border-primary/40 transition-colors"
+                  >
+                    <div className="flex items-center gap-4 flex-1">
+                      <div className="p-3 bg-primary/20 rounded-lg">
+                        <Icon className="w-6 h-6 text-primary" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-bold mb-1">{investment.type}</h3>
+                        <div className="flex items-center gap-4 text-sm text-foreground/60">
+                          <span>Amount: ${investment.amount.toLocaleString()}</span>
+                          <span>•</span>
+                          <span>ROI: {investment.roi}%</span>
+                        </div>
                       </div>
                     </div>
+                    <div className="text-right">
+                      <div className="font-bold text-primary">${investment.daily.toFixed(2)}/day</div>
+                      <div className="text-sm text-foreground/60">Daily return</div>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <div className="font-bold text-primary">${investment.daily}/day</div>
-                    <div className="text-sm text-foreground/60">Daily return</div>
-                  </div>
-                </div>
-              )
-            })}
+                )
+              })
+            )}
           </div>
         </Card>
 
@@ -283,7 +330,12 @@ export default function DashboardPage() {
         <Card className="p-6 bg-card border-primary/30 card-glow">
           <h2 className="text-2xl font-bold mb-6 font-[family-name:var(--font-orbitron)]">Recent Activity</h2>
           <div className="space-y-3">
-            {recentActivity.map((activity) => (
+            {recentActivity.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-foreground/70">No recent activity</p>
+              </div>
+            ) : (
+              recentActivity.map((activity) => (
               <div
                 key={activity.id}
                 className="flex items-center justify-between p-4 bg-background/50 rounded-lg border border-primary/20"
@@ -317,7 +369,8 @@ export default function DashboardPage() {
                   <div className="text-sm text-foreground/60 capitalize">{activity.status}</div>
                 </div>
               </div>
-            ))}
+              ))
+            )}
           </div>
         </Card>
       </div>

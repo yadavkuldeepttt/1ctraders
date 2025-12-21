@@ -62,6 +62,21 @@ const UserSchema = new Schema<UserDocument>(
       default: 0,
       min: 0,
     },
+    points: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    pendingPoints: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    role: {
+      type: String,
+      enum: ["user", "admin"],
+      default: "user",
+    },
     status: {
       type: String,
       enum: ["active", "suspended", "pending"],

@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import Link from "next/link"
 import { Eye, EyeOff, User, Mail, Lock, Users, Gift, Wallet } from "lucide-react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/contexts/AuthContext"
 import { walletService } from "@/lib/wallet"
 
@@ -31,6 +31,7 @@ export default function RegisterPage() {
     agreeTerms: false,
   })
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { register, isAuthenticated } = useAuth()
 
   useEffect(() => {
@@ -44,7 +45,16 @@ export default function RegisterPage() {
     if (wallet) {
       setWalletAddress(wallet.address)
     }
-  }, [isAuthenticated, router])
+    // Check for referral code in URL
+    const refCode = searchParams.get("ref")
+    if (refCode) {
+      // Convert to uppercase to match referral code format
+      setFormData((prev) => ({
+        ...prev,
+        referralCode: refCode.toUpperCase().trim(),
+      }))
+    }
+  }, [isAuthenticated, router, searchParams])
 
   const handleConnectWallet = async () => {
     setLoading(true)

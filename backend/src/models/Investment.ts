@@ -76,4 +76,4 @@ export const INVESTMENT_PLANS: InvestmentPlan[] = [
 
 // Constants for investment limits
 export const MAX_ROI_PERCENTAGE = 300 // 300% ROI limit
-export const MAX_COMMISSION_PERCENTAGE = 400 // 400% commission limit
+export const MAX_COMMISSION_PERCENTAGE = 400 // 400% commission limit (if networking is active)

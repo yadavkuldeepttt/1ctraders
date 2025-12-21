@@ -10,6 +10,9 @@ export interface User {
     totalInvested: number;
     totalEarnings: number;
     totalWithdrawn: number;
+    points: number;
+    pendingPoints: number;
+    role: "user" | "admin";
     status: "active" | "suspended" | "pending";
     emailVerified: boolean;
     twoFactorEnabled: boolean;

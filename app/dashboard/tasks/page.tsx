@@ -11,9 +11,10 @@ import { apiClient } from "@/lib/api-client"
 import { CheckCircle2, Clock, Gift, Twitter, Youtube, Share2, MessageSquare } from "lucide-react"
 
 export default function TasksPage() {
-  const { user } = useAuth()
+  const { user, refreshUser } = useAuth()
   const [loading, setLoading] = useState(true)
   const [tasks, setTasks] = useState<any[]>([])
+  const [error, setError] = useState<string | null>(null)
   
   const [initialTasks] = useState([
     {
@@ -76,23 +77,115 @@ export default function TasksPage() {
 
   const stats = {
     totalEarned: tasks.filter((t: any) => t.status === "completed" || t.userStatus === "completed").reduce((acc: number, t: any) => acc + (t.reward || 0), 0),
-    availableTasks: tasks.filter((t: any) => t.status === "available" || t.userStatus === "available").length,
+    availableTasks: tasks.filter((t: any) => (t.status === "available" || t.userStatus === "available" || (!t.status && !t.userStatus))).length,
     completedTasks: tasks.filter((t: any) => t.status === "completed" || t.userStatus === "completed").length,
-    pendingRewards: tasks.filter((t: any) => t.status === "pending" || t.userStatus === "pending").reduce((acc: number, t: any) => acc + (t.reward || 0), 0),
+    pendingRewards: user?.pendingPoints || 0, // Show pending points that will convert to money
   }
+
+  useEffect(() => {
+    const loadTasks = async () => {
+      if (!user) {
+        setLoading(false)
+        // Use initial tasks if no user
+        setTasks(initialTasks)
+        return
+      }
+
+      try {
+        setLoading(true)
+        setError(null)
+        const response = await apiClient.getAvailableTasks()
+        
+        if (response.error) {
+          console.warn("Tasks API error:", response.error)
+          // Always fallback to initial tasks on error
+          setTasks(initialTasks)
+        } else if (response.data) {
+          const fetchedTasks = response.data.tasks || []
+          // If no tasks from API, use initial tasks
+          if (fetchedTasks.length === 0) {
+            console.log("No tasks from API, using initial tasks")
+            setTasks(initialTasks)
+          } else {
+            // Map API tasks to include icons
+            const tasksWithIcons = fetchedTasks.map((task: any) => {
+              const iconMap: Record<string, any> = {
+                social: Share2,
+                referral: Gift,
+                daily: CheckCircle2,
+                special: Gift,
+              }
+              return {
+                ...task,
+                icon: iconMap[task.type] || Gift,
+                status: task.userStatus || task.status || "available",
+              }
+            })
+            setTasks(tasksWithIcons)
+          }
+        } else {
+          // Fallback to initial tasks if API returns nothing
+          console.log("No data from API, using initial tasks")
+          setTasks(initialTasks)
+        }
+      } catch (err) {
+        console.error("Failed to load tasks:", err)
+        setError("Failed to load tasks. Showing default tasks.")
+        // Always use initial tasks as fallback
+        setTasks(initialTasks)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadTasks()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user])
 
   const handleCompleteTask = async (taskId: string) => {
     try {
+      // Check if user has already completed 5 tasks
+      const completedCount = tasks.filter((t: any) => t.status === "completed" || t.userStatus === "completed").length
+      if (completedCount >= 5) {
+        alert("You have already completed the maximum of 5 tasks. Complete your investments to earn more!")
+        return
+      }
+
       const response = await apiClient.completeTask(taskId)
       if (response.data) {
-        // Reload tasks
+        // Show success message
+        if (response.message) {
+          alert(response.message)
+        }
+        
+        // Reload tasks to show updated status
         const tasksResponse = await apiClient.getAvailableTasks()
         if (tasksResponse.data) {
-          setTasks(tasksResponse.data.tasks || [])
+          const fetchedTasks = tasksResponse.data.tasks || []
+          const tasksWithIcons = fetchedTasks.map((task: any) => {
+            const iconMap: Record<string, any> = {
+              social: Share2,
+              referral: Gift,
+              daily: CheckCircle2,
+              special: Gift,
+            }
+            return {
+              ...task,
+              icon: iconMap[task.type] || Gift,
+              status: task.userStatus || task.status || "available",
+            }
+          })
+          setTasks(tasksWithIcons.length > 0 ? tasksWithIcons : initialTasks)
         }
+        
+        // Refresh user data to show updated points
+        await refreshUser()
+      } else if (response.error) {
+        alert(response.error)
       }
     } catch (error) {
       console.error("Failed to complete task:", error)
+      alert("Failed to complete task. Please try again.")
     }
   }
 
@@ -124,8 +217,23 @@ export default function TasksPage() {
           <h1 className="text-3xl md:text-4xl font-bold mb-2 font-[family-name:var(--font-orbitron)] glow-cyan">
             Tasks & Rewards
           </h1>
-          <p className="text-foreground/70">Complete tasks to earn bonus rewards</p>
+          <p className="text-foreground/70">
+            Complete up to 5 tasks to earn points. Points automatically convert to money after 24 hours.
+          </p>
+          {stats.completedTasks >= 5 && (
+            <div className="mt-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+              <p className="text-sm text-amber-500">
+                ✅ You've completed all 5 tasks! Your points will convert to money automatically.
+              </p>
+            </div>
+          )}
         </div>
+
+        {error && (
+          <div className="p-4 bg-destructive/10 border border-destructive/30 rounded-lg text-destructive">
+            {error}
+          </div>
+        )}
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -165,8 +273,8 @@ export default function TasksPage() {
                 <Clock className="w-6 h-6 text-amber-500" />
               </div>
             </div>
-            <div className="text-3xl font-bold mb-1">${stats.pendingRewards}</div>
-            <div className="text-sm text-foreground/60">Pending Rewards</div>
+            <div className="text-3xl font-bold mb-1">${((stats.pendingRewards || 0) / 100).toFixed(2)}</div>
+            <div className="text-sm text-foreground/60">Pending Points (Auto-converting)</div>
           </Card>
         </div>
 
@@ -181,7 +289,7 @@ export default function TasksPage() {
               const Icon = task.icon || Gift
             return (
               <Card
-                key={task.id}
+                key={task.id || task._id || `task-${task.title}`}
                 className={`p-6 bg-card border-primary/30 card-glow ${task.status === "completed" ? "opacity-60" : ""}`}
               >
                 <div className="flex items-start justify-between mb-4">
@@ -229,26 +337,29 @@ export default function TasksPage() {
 
                 <div className="flex items-center justify-between pt-4 border-t border-primary/20">
                   <div className="text-sm">
-                    {task.status === "completed" && (
+                    {(task.status === "completed" || task.userStatus === "completed") && (
                       <span className="text-green-500 flex items-center gap-2">
                         <CheckCircle2 className="w-4 h-4" />
-                        Completed
+                        Completed - Points awarded!
                       </span>
                     )}
-                    {task.status === "pending" && (
+                    {(task.status === "pending" || task.userStatus === "pending") && (
                       <span className="text-amber-500 flex items-center gap-2">
                         <Clock className="w-4 h-4" />
-                        Pending Verification
+                        Processing...
                       </span>
                     )}
-                    {task.status === "available" && <span className="text-foreground/60">Ready to complete</span>}
+                    {(task.status === "available" || task.userStatus === "available" || (!task.status && !task.userStatus)) && (
+                      <span className="text-foreground/60">Ready to complete</span>
+                    )}
                   </div>
-                  {(task.status === "available" || task.userStatus === "available") && (
+                  {(task.status === "available" || task.userStatus === "available" || (!task.status && !task.userStatus)) && (
                     <Button
                       className="bg-primary text-primary-foreground hover:bg-primary/90"
                       onClick={() => handleCompleteTask(task.id || task._id)}
+                      disabled={stats.completedTasks >= 5}
                     >
-                      {task.action || "Complete"}
+                      {stats.completedTasks >= 5 ? "Limit Reached" : (task.action || "Complete")}
                     </Button>
                   )}
                 </div>
