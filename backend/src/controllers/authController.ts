@@ -1,4 +1,6 @@
 import type { Request, Response } from "express"
+
+type ControllerResponse = Response | void
 import bcrypt from "bcryptjs"
 import jwt from "jsonwebtoken"
 import mongoose from "mongoose"
@@ -7,7 +9,7 @@ import { UserModel } from "../db/models/UserModel"
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production"
 
-export const register = async (req: Request, res: Response) => {
+export const register = async (req: Request, res: Response): Promise<ControllerResponse> => {
   try {
     const { username, email, password, phone, referralCode } = req.body as CreateUserDTO
 
@@ -68,7 +70,7 @@ export const register = async (req: Request, res: Response) => {
   }
 }
 
-export const login = async (req: Request, res: Response) => {
+export const login = async (req: Request, res: Response): Promise<ControllerResponse> => {
   try {
     const { username, password } = req.body
 
@@ -112,7 +114,7 @@ export const login = async (req: Request, res: Response) => {
   }
 }
 
-export const getProfile = async (req: Request, res: Response) => {
+export const getProfile = async (req: Request, res: Response): Promise<ControllerResponse> => {
   try {
     const userId = (req as any).userId // From auth middleware
 
@@ -133,7 +135,7 @@ export const getProfile = async (req: Request, res: Response) => {
   }
 }
 
-export const verifyToken = async (req: Request, res: Response) => {
+export const verifyToken = async (req: Request, res: Response): Promise<ControllerResponse> => {
   try {
     const userId = (req as any).userId // From auth middleware
 

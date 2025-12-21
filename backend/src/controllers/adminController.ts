@@ -1,10 +1,12 @@
 import type { Request, Response } from "express"
+
+type ControllerResponse = Response | void
 import mongoose from "mongoose"
 import { UserModel } from "../db/models/UserModel"
 import { InvestmentModel } from "../db/models/InvestmentModel"
 import { TransactionModel } from "../db/models/TransactionModel"
 
-export const getDashboardStats = async (req: Request, res: Response) => {
+export const getDashboardStats = async (_req: Request, res: Response): Promise<ControllerResponse> => {
   try {
     const totalUsers = await UserModel.countDocuments()
     const activeUsers = await UserModel.countDocuments({ status: "active" })
@@ -66,7 +68,7 @@ export const getAllUsers = async (req: Request, res: Response) => {
   }
 }
 
-export const updateUserStatus = async (req: Request, res: Response) => {
+export const updateUserStatus = async (req: Request, res: Response): Promise<ControllerResponse> => {
   try {
     const { userId } = req.params
     const { status } = req.body
@@ -97,7 +99,7 @@ export const updateUserStatus = async (req: Request, res: Response) => {
   }
 }
 
-export const getPendingWithdrawals = async (req: Request, res: Response) => {
+export const getPendingWithdrawals = async (_req: Request, res: Response): Promise<ControllerResponse> => {
   try {
     const pendingWithdrawals = await TransactionModel.find({
       type: "withdrawal",
@@ -114,7 +116,7 @@ export const getPendingWithdrawals = async (req: Request, res: Response) => {
   }
 }
 
-export const approveWithdrawal = async (req: Request, res: Response) => {
+export const approveWithdrawal = async (req: Request, res: Response): Promise<ControllerResponse> => {
   try {
     const { transactionId } = req.params
 

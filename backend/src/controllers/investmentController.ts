@@ -1,11 +1,13 @@
 import type { Request, Response } from "express"
+
+type ControllerResponse = Response | void
 import mongoose from "mongoose"
 import type { CreateInvestmentDTO } from "../models/Investment"
 import { INVESTMENT_PLANS } from "../models/Investment"
 import { InvestmentModel } from "../db/models/InvestmentModel"
 import { UserModel } from "../db/models/UserModel"
 
-export const getInvestmentPlans = async (req: Request, res: Response) => {
+export const getInvestmentPlans = async (_req: Request, res: Response): Promise<ControllerResponse> => {
   try {
     res.json({
       plans: INVESTMENT_PLANS,
@@ -16,7 +18,7 @@ export const getInvestmentPlans = async (req: Request, res: Response) => {
   }
 }
 
-export const createInvestment = async (req: Request, res: Response) => {
+export const createInvestment = async (req: Request, res: Response): Promise<ControllerResponse> => {
   try {
     const userId = (req as any).userId
     const { type, amount } = req.body as CreateInvestmentDTO
@@ -88,7 +90,7 @@ export const createInvestment = async (req: Request, res: Response) => {
   }
 }
 
-export const getUserInvestments = async (req: Request, res: Response) => {
+export const getUserInvestments = async (req: Request, res: Response): Promise<ControllerResponse> => {
   try {
     const userId = (req as any).userId
 
@@ -110,7 +112,7 @@ export const getUserInvestments = async (req: Request, res: Response) => {
   }
 }
 
-export const getInvestmentById = async (req: Request, res: Response) => {
+export const getInvestmentById = async (req: Request, res: Response): Promise<ControllerResponse> => {
   try {
     const userId = (req as any).userId
     const { id } = req.params

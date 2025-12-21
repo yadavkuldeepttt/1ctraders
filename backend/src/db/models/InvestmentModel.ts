@@ -11,7 +11,7 @@ const InvestmentSchema = new Schema<InvestmentDocument>(
       type: Schema.Types.ObjectId,
       ref: "User",
       required: true,
-    },
+    } as any,
     type: {
       type: String,
       enum: ["oil", "shares", "crypto", "ai"],
@@ -68,8 +68,8 @@ const InvestmentSchema = new Schema<InvestmentDocument>(
   {
     timestamps: true,
     toJSON: {
-      transform: function (doc, ret) {
-        ret.id = ret._id.toString()
+      transform: function (_doc, ret: any) {
+        ret.id = (ret._id as mongoose.Types.ObjectId).toString()
         delete ret._id
         delete ret.__v
         return ret

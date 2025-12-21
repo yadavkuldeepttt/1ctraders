@@ -1,10 +1,11 @@
 import type { Request, Response, NextFunction } from "express"
 import jwt from "jsonwebtoken"
-import mongoose from "mongoose"
+
+type MiddlewareResponse = Response | void
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production"
 
-export const authMiddleware = (req: Request, res: Response, next: NextFunction) => {
+export const authMiddleware = (req: Request, res: Response, next: NextFunction): MiddlewareResponse => {
   try {
     const authHeader = req.headers.authorization
 

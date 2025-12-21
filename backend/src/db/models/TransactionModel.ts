@@ -11,7 +11,7 @@ const TransactionSchema = new Schema<TransactionDocument>(
       type: Schema.Types.ObjectId,
       ref: "User",
       required: true,
-    },
+    } as any,
     type: {
       type: String,
       enum: ["deposit", "withdrawal", "roi", "referral", "task"],
@@ -45,8 +45,8 @@ const TransactionSchema = new Schema<TransactionDocument>(
   {
     timestamps: true,
     toJSON: {
-      transform: function (doc, ret) {
-        ret.id = ret._id.toString()
+      transform: function (_doc, ret: any) {
+        ret.id = (ret._id as mongoose.Types.ObjectId).toString()
         delete ret._id
         delete ret.__v
         return ret

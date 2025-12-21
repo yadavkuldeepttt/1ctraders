@@ -1,9 +1,11 @@
 import type { Request, Response } from "express"
+
+type ControllerResponse = Response | void
 import mongoose from "mongoose"
 import { REFERRAL_LEVELS } from "../models/Referral"
 import { ReferralModel, ReferralCommissionModel } from "../db/models/ReferralModel"
 
-export const getReferralStats = async (req: Request, res: Response) => {
+export const getReferralStats = async (req: Request, res: Response): Promise<ControllerResponse> => {
   try {
     const userId = (req as any).userId
 
@@ -53,7 +55,7 @@ export const getReferralStats = async (req: Request, res: Response) => {
   }
 }
 
-export const getUserReferrals = async (req: Request, res: Response) => {
+export const getUserReferrals = async (req: Request, res: Response): Promise<ControllerResponse> => {
   try {
     const userId = (req as any).userId
     const { level } = req.query
@@ -80,7 +82,7 @@ export const getUserReferrals = async (req: Request, res: Response) => {
   }
 }
 
-export const getReferralTree = async (req: Request, res: Response) => {
+export const getReferralTree = async (req: Request, res: Response): Promise<ControllerResponse> => {
   try {
     const userId = (req as any).userId
 
@@ -89,14 +91,14 @@ export const getReferralTree = async (req: Request, res: Response) => {
     }
 
     // Build referral tree (simplified for demo)
-    const buildTree = async (referrerId: mongoose.Types.ObjectId, maxLevel = 12) => {
+    const buildTree = async (referrerId: mongoose.Types.ObjectId, maxLevel = 12): Promise<any[]> => {
       const directReferrals = await ReferralModel.find({
         referrerId,
         level: { $lte: maxLevel },
       })
 
-      const children = await Promise.all(
-        directReferrals.map((ref) => buildTree(ref.referredUserId, maxLevel))
+      const children: any[] = await Promise.all(
+        directReferrals.map((ref) => buildTree(new mongoose.Types.ObjectId(ref.referredUserId.toString()), maxLevel))
       )
 
       return directReferrals.map((ref, index) => ({

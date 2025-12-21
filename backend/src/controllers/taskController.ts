@@ -1,10 +1,12 @@
 import type { Request, Response } from "express"
+
+type ControllerResponse = Response | void
 import mongoose from "mongoose"
 import { TaskModel, UserTaskModel } from "../db/models/TaskModel"
 import { UserModel } from "../db/models/UserModel"
 import { TransactionModel } from "../db/models/TransactionModel"
 
-export const getAvailableTasks = async (req: Request, res: Response) => {
+export const getAvailableTasks = async (req: Request, res: Response): Promise<ControllerResponse> => {
   try {
     const userId = (req as any).userId
 
@@ -20,7 +22,7 @@ export const getAvailableTasks = async (req: Request, res: Response) => {
 
     const tasks = await TaskModel.find({ isActive: true })
     const availableTasks = tasks
-      .filter((task) => !completedTaskIds.some((id) => id.equals(task._id)))
+      .filter((task) => !completedTaskIds.some((id) => id.toString() === task._id.toString()))
       .map((task) => task.toJSON())
 
     // Get user task statuses
@@ -47,7 +49,7 @@ export const getAvailableTasks = async (req: Request, res: Response) => {
   }
 }
 
-export const getUserTasks = async (req: Request, res: Response) => {
+export const getUserTasks = async (req: Request, res: Response): Promise<ControllerResponse> => {
   try {
     const userId = (req as any).userId
 
@@ -79,7 +81,7 @@ export const getUserTasks = async (req: Request, res: Response) => {
   }
 }
 
-export const completeTask = async (req: Request, res: Response) => {
+export const completeTask = async (req: Request, res: Response): Promise<ControllerResponse> => {
   try {
     const userId = (req as any).userId
     const { taskId } = req.params

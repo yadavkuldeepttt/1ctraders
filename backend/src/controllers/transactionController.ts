@@ -1,9 +1,11 @@
 import type { Request, Response } from "express"
+
+type ControllerResponse = Response | void
 import mongoose from "mongoose"
 import { TransactionModel } from "../db/models/TransactionModel"
 import { UserModel } from "../db/models/UserModel"
 
-export const createDeposit = async (req: Request, res: Response) => {
+export const createDeposit = async (req: Request, res: Response): Promise<ControllerResponse> => {
   try {
     const userId = (req as any).userId
     const { amount, paymentMethod } = req.body
@@ -35,7 +37,7 @@ export const createDeposit = async (req: Request, res: Response) => {
   }
 }
 
-export const createWithdrawal = async (req: Request, res: Response) => {
+export const createWithdrawal = async (req: Request, res: Response): Promise<ControllerResponse> => {
   try {
     const userId = (req as any).userId
     const { amount, withdrawalAddress } = req.body
@@ -81,7 +83,7 @@ export const createWithdrawal = async (req: Request, res: Response) => {
   }
 }
 
-export const getUserTransactions = async (req: Request, res: Response) => {
+export const getUserTransactions = async (req: Request, res: Response): Promise<ControllerResponse> => {
   try {
     const userId = (req as any).userId
     const { type, status, limit = 50 } = req.query
@@ -114,7 +116,7 @@ export const getUserTransactions = async (req: Request, res: Response) => {
   }
 }
 
-export const getTransactionById = async (req: Request, res: Response) => {
+export const getTransactionById = async (req: Request, res: Response): Promise<ControllerResponse> => {
   try {
     const userId = (req as any).userId
     const { id } = req.params

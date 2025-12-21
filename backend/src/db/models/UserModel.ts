@@ -79,8 +79,8 @@ const UserSchema = new Schema<UserDocument>(
   {
     timestamps: true,
     toJSON: {
-      transform: function (doc, ret) {
-        ret.id = ret._id.toString()
+      transform: function (_doc, ret: any) {
+        ret.id = (ret._id as mongoose.Types.ObjectId).toString()
         delete ret._id
         delete ret.__v
         delete ret.password
