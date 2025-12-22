@@ -14,6 +14,8 @@ export const adminMiddleware = async (req: Request, res: Response, next: NextFun
 
     const user = await UserModel.findById(userId)
 
+    console.log("User found:", user)
+
     if (!user) {
       return res.status(404).json({ error: "User not found" })
     }

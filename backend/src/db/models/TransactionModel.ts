@@ -38,6 +38,26 @@ const TransactionSchema = new Schema<TransactionDocument>(
       type: String,
       trim: true,
     },
+    // NOWPayments fields
+    paymentId: {
+      type: String,
+      trim: true,
+    },
+    coin: {
+      type: String,
+      trim: true,
+    },
+    cryptoAmount: {
+      type: Number,
+    },
+    payAddress: {
+      type: String,
+      trim: true,
+    },
+    paymentStatus: {
+      type: String,
+      enum: ["waiting", "confirming", "confirmed", "sending", "partially_paid", "finished", "failed", "refunded", "expired"],
+    },
     completedAt: {
       type: Date,
     },

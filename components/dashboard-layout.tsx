@@ -6,7 +6,9 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { LayoutDashboard, TrendingUp, Users, CheckSquare, Wallet, Settings, LogOut, Menu, X, Bell } from "lucide-react"
+import { LayoutDashboard, TrendingUp, Users, CheckSquare, Wallet, Settings, LogOut, Menu, X, Bell, BarChart3, Gamepad2, Droplet, ArrowUpDown, UserCheck, Trophy } from "lucide-react"
+import { useState as useReactState, useEffect as useReactEffect } from "react"
+import { apiClient } from "@/lib/api-client"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/contexts/AuthContext"
 import { walletService } from "@/lib/wallet"
@@ -14,6 +16,12 @@ import { walletService } from "@/lib/wallet"
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Investments", href: "/dashboard/invest", icon: TrendingUp },
+  { name: "Trades", href: "/dashboard/trades", icon: ArrowUpDown },
+  { name: "Stocks", href: "/dashboard/stocks", icon: BarChart3 },
+  { name: "Gaming Tokens", href: "/dashboard/gaming-tokens", icon: Gamepad2 },
+  { name: "Crude Oil", href: "/dashboard/crude-oil", icon: Droplet },
+  { name: "Active Users", href: "/dashboard/active-users", icon: UserCheck },
+  { name: "Leaderboard", href: "/dashboard/leaderboard", icon: Trophy },
   { name: "Referrals", href: "/dashboard/referrals", icon: Users },
   { name: "Tasks", href: "/dashboard/tasks", icon: CheckSquare },
   { name: "Wallet", href: "/dashboard/wallet", icon: Wallet },
@@ -24,6 +32,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [walletAddress, setWalletAddress] = useState<string | null>(null)
   const [walletLoading, setWalletLoading] = useState(false)
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0)
   const pathname = usePathname()
   const router = useRouter()
   const { user, logout, isAuthenticated } = useAuth()
@@ -33,6 +42,27 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       router.push("/auth/login")
     }
   }, [isAuthenticated, router])
+
+  useEffect(() => {
+    // Load unread notification count
+    const loadUnreadCount = async () => {
+      if (isAuthenticated) {
+        try {
+          const response = await apiClient.getUnreadNotificationCount()
+          if (response.data) {
+            setUnreadNotificationCount(response.data.count || 0)
+          }
+        } catch (error) {
+          console.error("Failed to load unread notification count:", error)
+        }
+      }
+    }
+
+    loadUnreadCount()
+    // Refresh every 30 seconds
+    const interval = setInterval(loadUnreadCount, 30000)
+    return () => clearInterval(interval)
+  }, [isAuthenticated])
 
   useEffect(() => {
     // Check for existing wallet connection
@@ -122,16 +152,17 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 p-4 space-y-2">
+          <nav className="flex-1 p-4 space-y-1 overflow-y-auto scroll">
             {navigation.map((item) => {
               const Icon = item.icon
               const isActive = pathname === item.href
+              const showBadge = item.name === "Notifications" && unreadNotificationCount > 0
               return (
                 <Link
                   key={item.name}
                   href={item.href}
                   className={cn(
-                    "flex items-center gap-3 px-4 py-3 rounded-lg transition-colors",
+                    "flex items-center gap-3 px-4 py-2 rounded-lg transition-colors relative",
                     isActive
                       ? "bg-primary/20 text-primary border border-primary/50"
                       : "text-foreground/70 hover:bg-primary/10 hover:text-primary",
@@ -140,6 +171,11 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 >
                   <Icon className="w-5 h-5" />
                   <span className="font-medium">{item.name}</span>
+                  {showBadge && (
+                    <span className="ml-auto bg-primary text-primary-foreground text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                      {unreadNotificationCount > 9 ? "9+" : unreadNotificationCount}
+                    </span>
+                  )}
                 </Link>
               )
             })}
@@ -192,10 +228,16 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 </Button>
               )}
 
-              <Button variant="ghost" size="icon" className="relative">
-                <Bell className="w-5 h-5" />
-                <span className="absolute top-1 right-1 w-2 h-2 bg-primary rounded-full"></span>
-              </Button>
+              <Link href="/dashboard/notifications">
+                <Button variant="ghost" size="icon" className="relative">
+                  <Bell className="w-5 h-5" />
+                  {unreadNotificationCount > 0 && (
+                    <span className="absolute top-1 right-1 bg-primary text-primary-foreground text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                      {unreadNotificationCount > 9 ? "9+" : unreadNotificationCount}
+                    </span>
+                  )}
+                </Button>
+              </Link>
 
               <div className="flex items-center gap-3 pl-4 border-l border-primary/30">
                 <div className="text-right hidden sm:block">

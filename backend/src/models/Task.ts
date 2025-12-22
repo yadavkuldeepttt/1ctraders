@@ -1,4 +1,4 @@
-export type TaskType = "social" | "referral" | "daily" | "special"
+export type TaskType = "social" | "referral" | "daily" | "special" | "ad"
 export type TaskStatus = "available" | "completed" | "pending" | "expired"
 
 export interface Task {

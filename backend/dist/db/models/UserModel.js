@@ -91,6 +91,11 @@ const UserSchema = new mongoose_1.Schema({
         default: 0,
         min: 0,
     },
+    totalDeposits: {
+        type: Number,
+        default: 0,
+        min: 0,
+    },
     points: {
         type: Number,
         default: 0,

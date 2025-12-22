@@ -12,6 +12,11 @@ import referralRoutes from "./routes/referralRoutes"
 import taskRoutes from "./routes/taskRoutes"
 import adminRoutes from "./routes/adminRoutes"
 import adminAuthRoutes from "./routes/adminAuthRoutes"
+import otpRoutes from "./routes/otpRoutes"
+import paymentRoutes from "./routes/paymentRoutes"
+import publicRoutes from "./routes/publicRoutes"
+import dummyDataRoutes from "./routes/dummyDataRoutes"
+import notificationRoutes from "./routes/notificationRoutes"
 import { errorHandler, notFoundHandler } from "./middleware/errorMiddleware"
 import connectDB from "./db/connection"
 import { startScheduler } from "./services/scheduler"
@@ -31,6 +36,10 @@ app.use(cors({
   allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
 }))
 app.use(morgan("dev"))
+
+// Raw body parser for NOWPayments webhook (must be before json parser)
+app.use("/api/payments/nowpayments/ipn", express.raw({ type: "application/json" }))
+
 app.use(express.json({ limit: "10mb" }))
 app.use(express.urlencoded({ extended: true, limit: "10mb" }))
 
@@ -45,6 +54,11 @@ app.use("/api/investments", investmentRoutes)
 app.use("/api/transactions", transactionRoutes)
 app.use("/api/referrals", referralRoutes)
 app.use("/api/tasks", taskRoutes)
+app.use("/api/otp", otpRoutes)
+app.use("/api/payments", paymentRoutes)
+app.use("/api/public", publicRoutes)
+app.use("/api/dummy", dummyDataRoutes)
+app.use("/api/notifications", notificationRoutes)
 
 // CRITICAL: Admin auth routes MUST be registered BEFORE admin routes
 // This ensures /api/admin/auth/* routes are matched before /api/admin/* routes

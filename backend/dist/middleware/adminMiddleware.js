@@ -13,6 +13,7 @@ const adminMiddleware = async (req, res, next) => {
             return res.status(401).json({ error: "Invalid user ID" });
         }
         const user = await UserModel_1.UserModel.findById(userId);
+        console.log("User found:", user);
         if (!user) {
             return res.status(404).json({ error: "User not found" });
         }

@@ -9,7 +9,7 @@ import { authMiddleware } from "../middleware/authMiddleware"
 
 const router = Router()
 
-router.post("/deposit", authMiddleware, createDeposit)
+router.post("/deposit/create", authMiddleware, createDeposit)
 router.post("/withdrawal", authMiddleware, createWithdrawal)
 router.get("/", authMiddleware, getUserTransactions)
 router.get("/:id", authMiddleware, getTransactionById)

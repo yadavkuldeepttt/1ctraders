@@ -10,6 +10,7 @@ export interface User {
     totalInvested: number;
     totalEarnings: number;
     totalWithdrawn: number;
+    totalDeposits?: number;
     points: number;
     pendingPoints: number;
     role: "user" | "admin";

@@ -22,7 +22,7 @@ const TaskSchema = new Schema<TaskDocument>(
     },
     type: {
       type: String,
-      enum: ["social", "referral", "daily", "special"],
+      enum: ["social", "referral", "daily", "special", "ad"],
       required: true,
     },
     reward: {

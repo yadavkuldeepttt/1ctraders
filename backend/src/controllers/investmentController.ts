@@ -80,6 +80,22 @@ export const createInvestment = async (req: Request, res: Response): Promise<Con
     user.totalInvested += amount
     await user.save()
 
+    // Create notification for investment creation
+    try {
+      const { createNotification } = await import("../services/notificationService")
+      await createNotification({
+        userId: userId,
+        title: "Investment Created!",
+        message: `Your ${type} investment of $${amount} has been created successfully. You will start earning daily ROI of ${roiPercentage.toFixed(2)}%.`,
+        type: "investment",
+        relatedId: newInvestment._id.toString(),
+        relatedType: "investment",
+      })
+    } catch (notifError) {
+      console.error("Error creating investment notification:", notifError)
+      // Don't fail the request if notification creation fails
+    }
+
     res.status(201).json({
       message: "Investment created successfully",
       investment: newInvestment.toJSON(),

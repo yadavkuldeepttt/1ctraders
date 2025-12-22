@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
-import { CircleDollarSign, BarChart3, Bitcoin, Cpu, TrendingUp, Shield, Clock } from "lucide-react"
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp"
+import { CircleDollarSign, BarChart3, Bitcoin, Cpu, TrendingUp, Shield, Clock, Mail } from "lucide-react"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { ProtectedRoute } from "@/components/protected-route"
 import { useAuth } from "@/contexts/AuthContext"
@@ -21,6 +22,11 @@ export default function InvestPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [otp, setOtp] = useState("")
+  const [otpSent, setOtpSent] = useState(false)
+  const [otpVerified, setOtpVerified] = useState(false)
+  const [sendingOtp, setSendingOtp] = useState(false)
+  const [verifyingOtp, setVerifyingOtp] = useState(false)
   const { user, refreshUser } = useAuth()
   const router = useRouter()
 
@@ -79,6 +85,123 @@ export default function InvestPage() {
     },
   ]
 
+  const handleSendOTP = async () => {
+    if (!selectedPlan) {
+      setError("Please select an investment plan")
+      return
+    }
+
+    const investmentAmount = parseFloat(amount)
+    const plan = plans.find((p) => p.id === selectedPlan)
+
+    if (!plan) {
+      setError("Invalid investment plan")
+      return
+    }
+
+    if (isNaN(investmentAmount) || investmentAmount < plan.minInvest) {
+      setError(`Minimum investment is $${plan.minInvest}`)
+      return
+    }
+
+    if (investmentAmount > plan.maxInvest) {
+      setError(`Maximum investment is $${plan.maxInvest}`)
+      return
+    }
+
+    setSendingOtp(true)
+    setError(null)
+
+    try {
+      const response = await apiClient.sendOTP()
+      if (response.error) {
+        setError(response.error)
+      } else {
+        setOtpSent(true)
+        setSuccess("OTP sent to your email. Please check your inbox.")
+        // In development, show OTP if returned
+        if (response.data?.otp) {
+          setSuccess(`OTP sent! (Dev mode: ${response.data.otp})`)
+        }
+      }
+    } catch (err) {
+      setError("Failed to send OTP")
+    } finally {
+      setSendingOtp(false)
+    }
+  }
+
+  const handleVerifyOTP = async () => {
+    if (!otp || otp.length !== 6) {
+      setError("Please enter a valid 6-digit OTP")
+      return
+    }
+
+    setVerifyingOtp(true)
+    setError(null)
+
+    try {
+      const response = await apiClient.verifyOTP(otp)
+      if (response.error) {
+        setError(response.error)
+      } else {
+        setOtpVerified(true)
+        setSuccess("OTP verified successfully!")
+        // Proceed with investment after OTP verification
+        await proceedWithCryptoInvestment()
+      }
+    } catch (err) {
+      setError("Failed to verify OTP")
+    } finally {
+      setVerifyingOtp(false)
+    }
+  }
+
+  const proceedWithCryptoInvestment = async () => {
+    if (!selectedPlan) return
+
+    const investmentAmount = parseFloat(amount)
+    const plan = plans.find((p) => p.id === selectedPlan)
+
+    if (!plan) return
+
+    setLoading(true)
+    setError(null)
+
+    try {
+      // For crypto payments, create a deposit transaction first
+      const depositResponse = await apiClient.createDeposit({
+        amount: investmentAmount,
+        paymentMethod: "crypto",
+      })
+
+      if (depositResponse.error) {
+        setError(depositResponse.error)
+        setLoading(false)
+        return
+      }
+
+      // Show message that deposit is pending and investment will be created after confirmation
+      setSuccess(
+        `Deposit of $${investmentAmount} initiated. Your investment will be created after payment confirmation.`
+      )
+      setAmount("")
+      setOtp("")
+      setOtpSent(false)
+      setOtpVerified(false)
+      setPaymentMethod("wallet")
+      await refreshUser()
+      setTimeout(() => {
+        setSelectedPlan(null)
+        router.refresh()
+      }, 3000)
+    } catch (err) {
+      setError("Failed to create investment")
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleInvest = async () => {
     if (!selectedPlan) {
       setError("Please select an investment plan")
@@ -109,40 +232,29 @@ export default function InvestPage() {
       return
     }
 
+    // For crypto payments, require OTP verification first
+    if (paymentMethod === "crypto") {
+      if (!otpSent) {
+        // First step: send OTP
+        await handleSendOTP()
+        return
+      }
+      if (!otpVerified) {
+        // Second step: verify OTP
+        await handleVerifyOTP()
+        return
+      }
+      // OTP verified, proceed with investment
+      await proceedWithCryptoInvestment()
+      return
+    }
+
+    // For wallet payments, create investment directly (balance already checked)
     setLoading(true)
     setError(null)
     setSuccess(null)
 
     try {
-      if (paymentMethod === "crypto") {
-        // For crypto payments, create a deposit transaction first
-        const depositResponse = await apiClient.createDeposit({
-          amount: investmentAmount,
-          paymentMethod: "crypto",
-        })
-
-        if (depositResponse.error) {
-          setError(depositResponse.error)
-          setLoading(false)
-          return
-        }
-
-        // Show message that deposit is pending and investment will be created after confirmation
-        setSuccess(
-          `Deposit of $${investmentAmount} initiated. Your investment will be created after payment confirmation.`
-        )
-        setAmount("")
-        setPaymentMethod("wallet")
-        await refreshUser()
-        setTimeout(() => {
-          setSelectedPlan(null)
-          router.refresh()
-        }, 3000)
-        setLoading(false)
-        return
-      }
-
-      // For wallet payments, create investment directly (balance already checked)
       const response = await apiClient.createInvestment({
         type: plan.name,
         amount: investmentAmount,
@@ -216,6 +328,9 @@ export default function InvestPage() {
                   setPaymentMethod("wallet")
                   setError(null)
                   setSuccess(null)
+                  setOtp("")
+                  setOtpSent(false)
+                  setOtpVerified(false)
                 }}
               >
                 <div className={`absolute inset-0 bg-gradient-to-br ${plan.color} opacity-50 rounded-2xl`}></div>
@@ -271,7 +386,21 @@ export default function InvestPage() {
         </div>
 
         {/* Investment Modal */}
-        <Dialog open={selectedPlan !== null} onOpenChange={(open) => !open && setSelectedPlan(null)}>
+        <Dialog
+          open={selectedPlan !== null}
+          onOpenChange={(open) => {
+            if (!open) {
+              setSelectedPlan(null)
+              // Reset all states when dialog closes
+              setAmount("")
+              setOtp("")
+              setOtpSent(false)
+              setOtpVerified(false)
+              setError(null)
+              setSuccess(null)
+            }
+          }}
+        >
           <DialogContent className="w-full max-w-7xl max-h-[90vh] scroll overflow-y-auto bg-card border-primary/30">
             <DialogHeader>
               <DialogTitle className="text-2xl font-bold font-[family-name:var(--font-orbitron)] text-foreground">
@@ -329,6 +458,9 @@ export default function InvestPage() {
                         onClick={() => {
                           setPaymentMethod("wallet")
                           setError(null)
+                          setOtp("")
+                          setOtpSent(false)
+                          setOtpVerified(false)
                         }}
                       >
                         Wallet Balance
@@ -349,6 +481,9 @@ export default function InvestPage() {
                         onClick={() => {
                           setPaymentMethod("crypto")
                           setError(null)
+                          setOtp("")
+                          setOtpSent(false)
+                          setOtpVerified(false)
                         }}
                       >
                         Crypto
@@ -361,10 +496,64 @@ export default function InvestPage() {
                     )}
                     {paymentMethod === "crypto" && (
                       <p className="text-sm text-foreground/60">
-                        You will be redirected to complete crypto payment
+                        OTP verification required for crypto payments
                       </p>
                     )}
                   </div>
+
+                  {/* OTP Section for Crypto Payments */}
+                  {paymentMethod === "crypto" && otpSent && !otpVerified && (
+                    <div className="space-y-4 p-4 bg-primary/10 border border-primary/30 rounded-lg">
+                      <div className="flex items-center gap-2 text-primary">
+                        <Mail className="w-5 h-5" />
+                        <Label className="text-base font-semibold">Enter OTP</Label>
+                      </div>
+                      <p className="text-sm text-foreground/70">
+                        Please enter the 6-digit OTP sent to your email address
+                      </p>
+                      <div className="flex justify-center">
+                        <InputOTP
+                          maxLength={6}
+                          value={otp}
+                          onChange={(value) => setOtp(value)}
+                          disabled={verifyingOtp}
+                        >
+                          <InputOTPGroup>
+                            <InputOTPSlot index={0} />
+                            <InputOTPSlot index={1} />
+                            <InputOTPSlot index={2} />
+                            <InputOTPSlot index={3} />
+                            <InputOTPSlot index={4} />
+                            <InputOTPSlot index={5} />
+                          </InputOTPGroup>
+                        </InputOTP>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="flex-1"
+                          onClick={() => {
+                            setOtpSent(false)
+                            setOtp("")
+                            setError(null)
+                            setSuccess(null)
+                          }}
+                          disabled={verifyingOtp}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          type="button"
+                          className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
+                          onClick={handleVerifyOTP}
+                          disabled={verifyingOtp || otp.length !== 6}
+                        >
+                          {verifyingOtp ? "Verifying..." : "Verify OTP"}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
 
                   <Button
                     className="w-full bg-primary text-primary-foreground hover:bg-primary/90 border-glow"
@@ -372,11 +561,22 @@ export default function InvestPage() {
                     onClick={handleInvest}
                     disabled={
                       loading ||
+                      sendingOtp ||
+                      verifyingOtp ||
                       !amount ||
-                      Number.parseFloat(amount) < (plans.find((p) => p.id === selectedPlan)?.minInvest || 0)
+                      Number.parseFloat(amount) < (plans.find((p) => p.id === selectedPlan)?.minInvest || 0) ||
+                      (paymentMethod === "crypto" && otpSent && !otpVerified)
                     }
                   >
-                    {loading ? "Processing..." : "Invest Now"}
+                    {loading
+                      ? "Processing..."
+                      : sendingOtp
+                        ? "Sending OTP..."
+                        : paymentMethod === "crypto" && !otpSent
+                          ? "Send OTP & Invest"
+                          : paymentMethod === "crypto" && otpVerified
+                            ? "Complete Investment"
+                            : "Invest Now"}
                   </Button>
                 </div>
 

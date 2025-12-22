@@ -19,9 +19,9 @@ class ApiClient {
   ): Promise<ApiResponse<T>> {
     const token = typeof window !== "undefined" ? localStorage.getItem("traders-token") : null
 
-    const headers: HeadersInit = {
+    const headers: Record<string, string> = {
       "Content-Type": "application/json",
-      ...options.headers,
+      ...(options.headers as Record<string, string> || {}),
     }
 
     if (token) {
@@ -125,8 +125,19 @@ class ApiClient {
   }
 
   // Transaction endpoints
-  async createDeposit(depositData: { amount: number; paymentMethod: string; cryptoAddress?: string }) {
-    return this.request<any>("/transactions/deposit", {
+  async createDeposit(depositData: { amountUSD: number; coin: string }) {
+    return this.request<{
+      message: string
+      transaction: any
+      payment: {
+        paymentId: string
+        payAddress: string
+        payAmount: string
+        coin: string
+        amountUSD: number
+        status: string
+      }
+    }>("/transactions/deposit/create", {
       method: "POST",
       body: JSON.stringify(depositData),
     })
@@ -174,6 +185,139 @@ class ApiClient {
   async completeTask(taskId: string) {
     return this.request<any>(`/tasks/${taskId}/complete`, {
       method: "POST",
+    })
+  }
+
+  // OTP endpoints (authenticated)
+  async sendOTP() {
+    return this.request<{ message: string; otp?: string }>("/otp/send", {
+      method: "POST",
+    })
+  }
+
+  async verifyOTP(otp: string) {
+    return this.request<{ message: string; verified: boolean }>("/otp/verify", {
+      method: "POST",
+      body: JSON.stringify({ otp }),
+    })
+  }
+
+  // Public OTP endpoints (for registration)
+  async sendVerificationOTP(email: string) {
+    return this.request<{ message: string; otp?: string }>("/otp/send-verification", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    })
+  }
+
+  async verifyVerificationOTP(email: string, otp: string) {
+    return this.request<{ message: string; verified: boolean }>("/otp/verify-verification", {
+      method: "POST",
+      body: JSON.stringify({ email, otp }),
+    })
+  }
+
+  // Public OTP endpoints (for login)
+  async sendLoginOTP(email: string) {
+    return this.request<{ message: string; otp?: string }>("/otp/send-login", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    })
+  }
+
+  async verifyLoginOTP(email: string, otp: string) {
+    return this.request<{ message: string; verified: boolean }>("/otp/verify-login", {
+      method: "POST",
+      body: JSON.stringify({ email, otp }),
+    })
+  }
+
+  // Payment endpoints
+  async createCryptoPayment(data: { amount: number; coin: string; otp: string; orderId?: string }) {
+    return this.request<any>("/payments/crypto", {
+      method: "POST",
+      body: JSON.stringify(data),
+    })
+  }
+
+  async getPaymentStatus(paymentId: string) {
+    return this.request<any>(`/payments/${paymentId}/status`, {
+      method: "GET",
+    })
+  }
+
+  // Public endpoints (no authentication required)
+  async getActiveUsers() {
+    return this.request<{ activeUsers: any[]; totalActive: number }>("/public/active-users", {
+      method: "GET",
+    })
+  }
+
+  async getLeaderboard(type: "earnings" | "invested" | "balance" = "earnings", limit: number = 10) {
+    return this.request<{ leaderboard: any[]; type: string }>(`/public/leaderboard?type=${type}&limit=${limit}`, {
+      method: "GET",
+    })
+  }
+
+  // Dummy data endpoints
+  async getDummyTrades(limit: number = 20) {
+    return this.request<{ trades: any[] }>(`/dummy/trades?limit=${limit}`, {
+      method: "GET",
+    })
+  }
+
+  async getDummyStocks() {
+    return this.request<{ stocks: any[] }>("/dummy/stocks", {
+      method: "GET",
+    })
+  }
+
+  async getDummyGamingTokens() {
+    return this.request<{ tokens: any[] }>("/dummy/gaming-tokens", {
+      method: "GET",
+    })
+  }
+
+  async getDummyCrudeOil() {
+    return this.request<{ investments: any[] }>("/dummy/crude-oil", {
+      method: "GET",
+    })
+  }
+
+  async getAllDummyData() {
+    return this.request<{ trades: any[]; stocks: any[]; tokens: any[]; investments: any[] }>("/dummy/all", {
+      method: "GET",
+    })
+  }
+
+  // Notification endpoints
+  async getNotifications(limit: number = 50, unreadOnly: boolean = false) {
+    return this.request<{ notifications: any[] }>(`/notifications?limit=${limit}&unreadOnly=${unreadOnly}`, {
+      method: "GET",
+    })
+  }
+
+  async getUnreadNotificationCount() {
+    return this.request<{ count: number }>("/notifications/unread-count", {
+      method: "GET",
+    })
+  }
+
+  async markNotificationAsRead(notificationId: string) {
+    return this.request<{ notification: any }>(`/notifications/${notificationId}/read`, {
+      method: "PATCH",
+    })
+  }
+
+  async markAllNotificationsAsRead() {
+    return this.request<{ success: boolean; updated: number }>("/notifications/read-all", {
+      method: "PATCH",
+    })
+  }
+
+  async deleteNotification(notificationId: string) {
+    return this.request<{ success: boolean }>(`/notifications/${notificationId}`, {
+      method: "DELETE",
     })
   }
 }

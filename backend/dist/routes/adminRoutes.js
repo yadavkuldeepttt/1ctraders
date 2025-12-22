@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const adminController_1 = require("../controllers/adminController");
 const adminTaskController_1 = require("../controllers/adminTaskController");
+const adminNotificationController_1 = require("../controllers/adminNotificationController");
 const authMiddleware_1 = require("../middleware/authMiddleware");
 const adminMiddleware_1 = require("../middleware/adminMiddleware");
 const router = (0, express_1.Router)();
@@ -19,5 +20,9 @@ router.get("/tasks/:taskId", adminTaskController_1.getTask);
 router.post("/tasks", adminTaskController_1.createTask);
 router.patch("/tasks/:taskId", adminTaskController_1.updateTask);
 router.delete("/tasks/:taskId", adminTaskController_1.deleteTask);
+// Notification management routes
+router.post("/notifications/send", adminNotificationController_1.sendNotification);
+router.post("/notifications/broadcast", adminNotificationController_1.broadcastNotification);
+router.post("/notifications/send-multiple", adminNotificationController_1.sendMultipleNotifications);
 exports.default = router;
 //# sourceMappingURL=adminRoutes.js.map

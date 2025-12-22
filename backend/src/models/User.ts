@@ -10,6 +10,7 @@ export interface User {
   totalInvested: number
   totalEarnings: number
   totalWithdrawn: number
+  totalDeposits?: number // Total deposits made
   points: number // Points earned from tasks
   pendingPoints: number // Points pending conversion to money
   role: "user" | "admin" // User role

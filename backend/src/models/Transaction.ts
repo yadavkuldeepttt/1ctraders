@@ -10,6 +10,12 @@ export interface Transaction {
   description: string
   txHash?: string
   withdrawalAddress?: string
+  // NOWPayments fields
+  paymentId?: string
+  coin?: string
+  cryptoAmount?: number
+  payAddress?: string
+  paymentStatus?: "waiting" | "confirming" | "confirmed" | "sending" | "partially_paid" | "finished" | "failed" | "refunded" | "expired"
   createdAt: Date
   updatedAt: Date
   completedAt?: Date

@@ -8,11 +8,13 @@ import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp"
 import Link from "next/link"
 import { Eye, EyeOff, User, Mail, Lock, Users, Gift, Wallet } from "lucide-react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/contexts/AuthContext"
 import { walletService } from "@/lib/wallet"
+import { apiClient } from "@/lib/api-client"
 
 export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false)
@@ -22,6 +24,11 @@ export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null)
   const [walletAddress, setWalletAddress] = useState<string | null>(null)
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({})
+  const [otp, setOtp] = useState("")
+  const [otpSent, setOtpSent] = useState(false)
+  const [otpVerified, setOtpVerified] = useState(false)
+  const [sendingOtp, setSendingOtp] = useState(false)
+  const [verifyingOtp, setVerifyingOtp] = useState(false)
   const [formData, setFormData] = useState({
     username: "",
     email: "",
@@ -115,16 +122,74 @@ export default function RegisterPage() {
     return Object.keys(errors).length === 0
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    if (!validateForm()) {
+  const handleSendOTP = async () => {
+    // Validate email first
+    if (!formData.email) {
+      setError("Please enter your email address")
       return
     }
 
+    if (!/^\S+@\S+\.\S+$/.test(formData.email)) {
+      setError("Please enter a valid email address")
+      return
+    }
+
+    setSendingOtp(true)
+    setError(null)
+
+    try {
+      const response = await apiClient.sendVerificationOTP(formData.email)
+      if (response.error) {
+        setError(response.error)
+      } else {
+        setOtpSent(true)
+        setError(null)
+        // In development, show OTP if returned
+        if (response.data?.otp) {
+          setError(`OTP sent! (Dev mode: ${response.data.otp})`)
+        }
+      }
+    } catch (err) {
+      setError("Failed to send OTP. Please try again.")
+    } finally {
+      setSendingOtp(false)
+    }
+  }
+
+  const handleVerifyOTP = async () => {
+    if (!otp || otp.length !== 6) {
+      setError("Please enter a valid 6-digit OTP")
+      return
+    }
+
+    if (!formData.email) {
+      setError("Email is required")
+      return
+    }
+
+    setVerifyingOtp(true)
+    setError(null)
+
+    try {
+      const response = await apiClient.verifyVerificationOTP(formData.email, otp)
+      if (response.error) {
+        setError(response.error)
+      } else {
+        setOtpVerified(true)
+        setError(null)
+        // Proceed with registration after OTP verification
+        await proceedWithRegistration()
+      }
+    } catch (err) {
+      setError("Failed to verify OTP. Please try again.")
+    } finally {
+      setVerifyingOtp(false)
+    }
+  }
+
+  const proceedWithRegistration = async () => {
     setLoading(true)
     setError(null)
-    setValidationErrors({})
 
     try {
       const result = await register({
@@ -136,7 +201,7 @@ export default function RegisterPage() {
       })
 
       if (result.success) {
-    router.push("/dashboard")
+        router.push("/dashboard")
       } else {
         setError(result.error || "Registration failed")
       }
@@ -144,6 +209,31 @@ export default function RegisterPage() {
       setError("An error occurred during registration")
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!validateForm()) {
+      return
+    }
+
+    // If OTP not sent yet, send it
+    if (!otpSent) {
+      await handleSendOTP()
+      return
+    }
+
+    // If OTP sent but not verified, verify it
+    if (otpSent && !otpVerified) {
+      await handleVerifyOTP()
+      return
+    }
+
+    // If OTP verified, proceed with registration
+    if (otpVerified) {
+      await proceedWithRegistration()
     }
   }
 
@@ -297,8 +387,15 @@ export default function RegisterPage() {
                     if (validationErrors.email) {
                       setValidationErrors({ ...validationErrors, email: "" })
                     }
+                    // Reset OTP state when email changes
+                    if (otpSent) {
+                      setOtpSent(false)
+                      setOtpVerified(false)
+                      setOtp("")
+                    }
                   }}
                   required
+                  disabled={otpSent}
                 />
               </div>
               {validationErrors.email && (
@@ -417,14 +514,115 @@ export default function RegisterPage() {
               <p className="text-sm text-destructive">{validationErrors.terms}</p>
             )}
 
-            <Button
-              type="submit"
-              className="w-full bg-primary text-primary-foreground hover:bg-primary/90 border-glow py-6 text-lg font-semibold rounded-xl"
-              size="lg"
-              disabled={loading}
-            >
-              {loading ? "Creating account..." : "Create Account"}
-            </Button>
+            {/* OTP Verification Section - Step 2 */}
+            {otpSent && !otpVerified && (
+              <div className="space-y-4 p-6 bg-gradient-to-br from-primary/20 to-primary/10 border-2 border-primary/50 rounded-xl shadow-lg">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="p-2 bg-primary/20 rounded-lg">
+                    <Mail className="w-6 h-6 text-primary" />
+                  </div>
+                  <div>
+                    <Label className="text-lg font-bold text-foreground">Email Verification</Label>
+                    <p className="text-sm text-foreground/70">Step 2 of 2</p>
+                  </div>
+                </div>
+                <div className="bg-card/50 p-4 rounded-lg border border-primary/30">
+                  <p className="text-sm text-foreground/80 mb-1">
+                    We've sent a 6-digit verification code to:
+                  </p>
+                  <p className="text-base font-semibold text-primary">{formData.email}</p>
+                </div>
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium text-foreground">Enter Verification Code</Label>
+                  <div className="flex justify-center py-2">
+                    <InputOTP
+                      maxLength={6}
+                      value={otp}
+                      onChange={(value) => setOtp(value)}
+                      disabled={verifyingOtp}
+                      className="gap-2"
+                    >
+                      <InputOTPGroup className="gap-2">
+                        <InputOTPSlot index={0} className="w-12 h-14 text-lg font-bold border-2 border-primary/50 data-[active=true]:border-primary data-[active=true]:ring-2 data-[active=true]:ring-primary/20" />
+                        <InputOTPSlot index={1} className="w-12 h-14 text-lg font-bold border-2 border-primary/50 data-[active=true]:border-primary data-[active=true]:ring-2 data-[active=true]:ring-primary/20" />
+                        <InputOTPSlot index={2} className="w-12 h-14 text-lg font-bold border-2 border-primary/50 data-[active=true]:border-primary data-[active=true]:ring-2 data-[active=true]:ring-primary/20" />
+                        <InputOTPSlot index={3} className="w-12 h-14 text-lg font-bold border-2 border-primary/50 data-[active=true]:border-primary data-[active=true]:ring-2 data-[active=true]:ring-primary/20" />
+                        <InputOTPSlot index={4} className="w-12 h-14 text-lg font-bold border-2 border-primary/50 data-[active=true]:border-primary data-[active=true]:ring-2 data-[active=true]:ring-primary/20" />
+                        <InputOTPSlot index={5} className="w-12 h-14 text-lg font-bold border-2 border-primary/50 data-[active=true]:border-primary data-[active=true]:ring-2 data-[active=true]:ring-primary/20" />
+                      </InputOTPGroup>
+                    </InputOTP>
+                  </div>
+                  <div className="flex gap-3 pt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="flex-1 border-primary/50 hover:bg-primary/10"
+                      onClick={() => {
+                        setOtpSent(false)
+                        setOtp("")
+                        setError(null)
+                      }}
+                      disabled={verifyingOtp}
+                    >
+                      Back
+                    </Button>
+                    <Button
+                      type="button"
+                      className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg"
+                      onClick={handleVerifyOTP}
+                      disabled={verifyingOtp || otp.length !== 6}
+                      size="lg"
+                    >
+                      {verifyingOtp ? (
+                        <span className="flex items-center gap-2">
+                          <span className="animate-spin">⏳</span>
+                          Verifying...
+                        </span>
+                      ) : (
+                        "Verify & Create Account"
+                      )}
+                    </Button>
+                  </div>
+                  <div className="pt-2 border-t border-primary/20">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleSendOTP}
+                      disabled={sendingOtp}
+                      className="w-full text-sm text-primary hover:text-primary/80"
+                    >
+                      {sendingOtp ? (
+                        <span className="flex items-center gap-2 justify-center">
+                          <span className="animate-spin">⏳</span>
+                          Resending...
+                        </span>
+                      ) : (
+                        "Didn't receive code? Resend OTP"
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {!otpSent && (
+              <Button
+                type="submit"
+                className="w-full bg-primary text-primary-foreground hover:bg-primary/90 border-glow py-6 text-lg font-semibold rounded-xl shadow-lg"
+                size="lg"
+                disabled={loading || sendingOtp}
+              >
+                {sendingOtp ? (
+                  <span className="flex items-center gap-2 justify-center">
+                    <span className="animate-spin">⏳</span>
+                    Sending OTP...
+                  </span>
+                ) : (
+                  "Send Verification OTP"
+                )}
+              </Button>
+            )}
           </form>
 
           <div className="mt-6 text-center text-sm">

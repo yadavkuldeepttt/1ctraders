@@ -13,6 +13,11 @@ import {
   updateTask,
   deleteTask,
 } from "../controllers/adminTaskController"
+import {
+  sendNotification,
+  broadcastNotification,
+  sendMultipleNotifications,
+} from "../controllers/adminNotificationController"
 import { authMiddleware } from "../middleware/authMiddleware"
 import { adminMiddleware } from "../middleware/adminMiddleware"
 
@@ -33,5 +38,10 @@ router.get("/tasks/:taskId", getTask)
 router.post("/tasks", createTask)
 router.patch("/tasks/:taskId", updateTask)
 router.delete("/tasks/:taskId", deleteTask)
+
+// Notification management routes
+router.post("/notifications/send", sendNotification)
+router.post("/notifications/broadcast", broadcastNotification)
+router.post("/notifications/send-multiple", sendMultipleNotifications)
 
 export default router

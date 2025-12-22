@@ -9,7 +9,15 @@ import { DashboardLayout } from "@/components/dashboard-layout"
 import { ProtectedRoute } from "@/components/protected-route"
 import { useAuth } from "@/contexts/AuthContext"
 import { apiClient } from "@/lib/api-client"
-import { Wallet, ArrowDownRight, ArrowUpRight, Clock, CheckCircle2, XCircle } from "lucide-react"
+import { Wallet, ArrowDownRight, ArrowUpRight, Clock, CheckCircle2, XCircle, Copy, QrCode } from "lucide-react"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { toast } from "sonner"
 import {
   Dialog,
   DialogContent,
@@ -18,13 +26,26 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import { QRCodeSVG } from "qrcode.react"
+
+const SUPPORTED_COINS = [
+  { code: "BTC", name: "Bitcoin", icon: "₿" },
+  { code: "ETH", name: "Ethereum", icon: "Ξ" },
+  { code: "USDT", name: "Tether", icon: "₮" },
+  { code: "USDC", name: "USD Coin", icon: "💵" },
+  { code: "BNB", name: "Binance Coin", icon: "BNB" },
+  { code: "LTC", name: "Litecoin", icon: "Ł" },
+  { code: "XRP", name: "Ripple", icon: "XRP" },
+  { code: "DOGE", name: "Dogecoin", icon: "Ð" },
+  { code: "TRX", name: "Tron", icon: "TRX" },
+  { code: "ADA", name: "Cardano", icon: "ADA" },
+]
 
 export default function WalletPage() {
-  const { user } = useAuth()
+  const { user, refreshUser } = useAuth()
   const [loading, setLoading] = useState(true)
   const [depositAmount, setDepositAmount] = useState("")
-  const [depositPaymentMethod, setDepositPaymentMethod] = useState<"crypto" | "bank">("crypto")
-  const [cryptoAddress, setCryptoAddress] = useState("")
+  const [selectedCoin, setSelectedCoin] = useState("ETH")
   const [withdrawAmount, setWithdrawAmount] = useState("")
   const [withdrawAddress, setWithdrawAddress] = useState("")
   const [depositLoading, setDepositLoading] = useState(false)
@@ -32,6 +53,15 @@ export default function WalletPage() {
   const [transactions, setTransactions] = useState<any[]>([])
   const [depositDialogOpen, setDepositDialogOpen] = useState(false)
   const [withdrawDialogOpen, setWithdrawDialogOpen] = useState(false)
+  const [depositError, setDepositError] = useState<string | null>(null)
+  const [depositSuccess, setDepositSuccess] = useState<string | null>(null)
+  const [paymentDetails, setPaymentDetails] = useState<{
+    paymentId: string
+    payAddress: string
+    payAmount: string
+    coin: string
+    amountUSD: number
+  } | null>(null)
 
   const wallet = {
     balance: user?.balance || 0,
@@ -74,40 +104,50 @@ export default function WalletPage() {
 
   const handleDeposit = async () => {
     if (!depositAmount || parseFloat(depositAmount) <= 0) {
+      setDepositError("Please enter a valid amount")
       return
     }
 
-    if (depositPaymentMethod === "crypto" && !cryptoAddress) {
-      alert("Please enter your crypto wallet address")
+    if (!selectedCoin) {
+      setDepositError("Please select a cryptocurrency")
       return
     }
 
     setDepositLoading(true)
+    setDepositError(null)
+    setDepositSuccess(null)
+    setPaymentDetails(null)
+
     try {
       const response = await apiClient.createDeposit({
-        amount: parseFloat(depositAmount),
-        paymentMethod: depositPaymentMethod,
-        cryptoAddress: depositPaymentMethod === "crypto" ? cryptoAddress : undefined,
+        amountUSD: parseFloat(depositAmount),
+        coin: selectedCoin,
       })
 
       if (response.error) {
-        alert(response.error)
-      } else {
-        alert(`Deposit of $${depositAmount} initiated!`)
-        setDepositAmount("")
-        setCryptoAddress("")
-        setDepositDialogOpen(false)
+        setDepositError(response.error)
+      } else if (response.data) {
+        // Show payment details
+        setPaymentDetails(response.data.payment)
+        setDepositSuccess("Payment address generated! Please send the exact amount to the address below.")
         // Reload transactions
         const txResponse = await apiClient.getUserTransactions()
         if (txResponse.data) {
           setTransactions(txResponse.data.transactions || [])
         }
+        // Refresh user to update balance when payment completes
+        await refreshUser()
       }
     } catch (error) {
-      alert("Failed to create deposit")
+      setDepositError("Failed to create deposit")
     } finally {
       setDepositLoading(false)
     }
+  }
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text)
+    toast.success("Copied to clipboard!")
   }
 
   const handleWithdraw = async () => {
@@ -125,7 +165,7 @@ export default function WalletPage() {
       if (response.error) {
         alert(response.error)
       } else {
-        alert(`Withdrawal of $${withdrawAmount} initiated!`)
+        alert(`Withdrawal request of $${withdrawAmount} submitted successfully! Your request is pending manual approval by admin.`)
         setWithdrawAmount("")
         setWithdrawAddress("")
         setWithdrawDialogOpen(false)
@@ -184,95 +224,237 @@ export default function WalletPage() {
               ${wallet.balance.toLocaleString()}
             </div>
             <div className="flex gap-4 justify-center">
-              <Dialog open={depositDialogOpen} onOpenChange={setDepositDialogOpen}>
+              <Dialog
+                open={depositDialogOpen}
+                  onOpenChange={(open) => {
+                    setDepositDialogOpen(open)
+                    if (!open) {
+                      // Reset all states when dialog closes
+                      setDepositAmount("")
+                      setSelectedCoin("ETH")
+                      setPaymentDetails(null)
+                      setDepositError(null)
+                      setDepositSuccess(null)
+                    }
+                  }}
+              >
                 <DialogTrigger asChild>
                   <Button size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90 px-8">
                     <ArrowDownRight className="w-5 h-5 mr-2" />
                     Deposit
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="bg-card border-primary/30">
+                <DialogContent className="bg-card border-primary/30 max-w-2xl max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle className="font-[family-name:var(--font-orbitron)] text-2xl">
                       Deposit Funds
                     </DialogTitle>
-                    <DialogDescription>Add funds to your wallet to start investing</DialogDescription>
+                    <DialogDescription>Add funds to your wallet using cryptocurrency</DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4 py-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="depositAmount">Amount ($)</Label>
-                      <Input
-                        id="depositAmount"
-                        type="number"
-                        placeholder="Enter amount"
-                        className="bg-input border-primary/30"
-                        value={depositAmount}
-                        onChange={(e) => setDepositAmount(e.target.value)}
-                        min="0"
-                        step="0.01"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Payment Method</Label>
-                      <div className="grid grid-cols-2 gap-3">
-                        <Button
-                          type="button"
-                          variant={depositPaymentMethod === "bank" ? "default" : "outline"}
-                          className={
-                            depositPaymentMethod === "bank"
-                              ? "bg-primary text-primary-foreground border-primary hover:bg-primary/90"
-                              : "border-primary/50 bg-transparent hover:bg-primary/10"
-                          }
-                          onClick={() => {
-                            setDepositPaymentMethod("bank")
-                            setCryptoAddress("")
-                          }}
-                        >
-                          Bank Transfer
-                        </Button>
-                        <Button
-                          type="button"
-                          variant={depositPaymentMethod === "crypto" ? "default" : "outline"}
-                          className={
-                            depositPaymentMethod === "crypto"
-                              ? "bg-primary text-primary-foreground border-primary hover:bg-primary/90"
-                              : "border-primary/50 bg-transparent hover:bg-primary/10"
-                          }
-                          onClick={() => setDepositPaymentMethod("crypto")}
-                        >
-                          Crypto
-                        </Button>
-                      </div>
-                    </div>
-                    {depositPaymentMethod === "crypto" && (
-                      <div className="space-y-2">
-                        <Label htmlFor="cryptoAddress">Crypto Wallet Address</Label>
-                        <Input
-                          id="cryptoAddress"
-                          placeholder="Enter your crypto wallet address (BTC, ETH, USDT)"
-                          className="bg-input border-primary/30"
-                          value={cryptoAddress}
-                          onChange={(e) => setCryptoAddress(e.target.value)}
-                        />
-                        <p className="text-xs text-foreground/60">
-                          Supported: Bitcoin (BTC), Ethereum (ETH), Tether (USDT), and other major cryptocurrencies
-                        </p>
+                    {depositError && (
+                      <div className="p-4 bg-destructive/10 border border-destructive/30 rounded-lg text-destructive">
+                        {depositError}
                       </div>
                     )}
-                    {depositPaymentMethod === "bank" && (
-                      <div className="space-y-2">
-                        <p className="text-sm text-foreground/70">
-                          Bank transfer details will be provided after you confirm the deposit.
-                        </p>
+
+                    {depositSuccess && (
+                      <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-lg text-green-500">
+                        {depositSuccess}
                       </div>
                     )}
-                    <Button
-                      className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
-                      onClick={handleDeposit}
-                      disabled={depositLoading || !depositAmount || parseFloat(depositAmount) <= 0 || (depositPaymentMethod === "crypto" && !cryptoAddress)}
-                    >
-                      {depositLoading ? "Processing..." : "Confirm Deposit"}
-                    </Button>
+
+                    {!paymentDetails ? (
+                      <>
+                        <div className="space-y-2">
+                          <Label htmlFor="depositAmount">Amount (USD)</Label>
+                          <Input
+                            id="depositAmount"
+                            type="number"
+                            placeholder="Enter amount in USD"
+                            className="bg-input border-primary/30"
+                            value={depositAmount}
+                            onChange={(e) => setDepositAmount(e.target.value)}
+                            min="10"
+                            step="0.01"
+                          />
+                          <p className="text-xs text-foreground/60">Minimum deposit: $10</p>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="coin">Select Cryptocurrency</Label>
+                          <Select value={selectedCoin} onValueChange={setSelectedCoin}>
+                            <SelectTrigger className="bg-input border-primary/30">
+                              <SelectValue placeholder="Select a coin" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {SUPPORTED_COINS.map((coin) => (
+                                <SelectItem key={coin.code} value={coin.code}>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-lg">{coin.icon}</span>
+                                    <span>{coin.name} ({coin.code})</span>
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <Button
+                          className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
+                          onClick={handleDeposit}
+                          disabled={depositLoading || !depositAmount || parseFloat(depositAmount) < 10 || !selectedCoin}
+                        >
+                          {depositLoading ? "Creating Payment..." : "Continue"}
+                        </Button>
+                      </>
+                    ) : (
+                      <div className="space-y-6">
+                        <div className="p-6 bg-primary/10 border border-primary/30 rounded-lg">
+                          <h3 className="text-lg font-bold mb-4 font-[family-name:var(--font-orbitron)]">
+                            Send Payment
+                          </h3>
+                          <div className="space-y-4">
+                            {/* QR Code Section */}
+                            <div className="flex flex-col items-center gap-4 p-4 bg-background/50 rounded-lg border border-primary/20">
+                              <div className="p-4 bg-white rounded-lg">
+                                <QRCodeSVG
+                                  value={
+                                    paymentDetails.coin === "ETH" || paymentDetails.coin === "BNB"
+                                      ? `ethereum:${paymentDetails.payAddress}?value=${paymentDetails.payAmount}`
+                                      : paymentDetails.coin === "BTC"
+                                      ? `bitcoin:${paymentDetails.payAddress}?amount=${paymentDetails.payAmount}`
+                                      : paymentDetails.coin === "USDT" || paymentDetails.coin === "USDC"
+                                      ? `ethereum:${paymentDetails.payAddress}?value=${paymentDetails.payAmount}`
+                                      : paymentDetails.payAddress
+                                  }
+                                  size={200}
+                                  level="H"
+                                  includeMargin={true}
+                                />
+                              </div>
+                              <div className="text-center">
+                                <p className="text-sm text-foreground/70 mb-1">Scan QR Code</p>
+                                <p className="text-xs text-foreground/60">Use your crypto wallet to scan and send payment</p>
+                                <p className="text-xs text-primary mt-1 font-semibold">
+                                  Address & amount will auto-fill in MetaMask
+                                </p>
+                              </div>
+                            </div>
+
+                            <div>
+                              <Label className="text-sm text-foreground/70">Send Exactly</Label>
+                              <div className="flex items-center gap-2 mt-1">
+                                <p className="text-2xl font-bold text-primary">
+                                  {paymentDetails.payAmount} {paymentDetails.coin}
+                                </p>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => copyToClipboard(paymentDetails.payAmount)}
+                                  className="h-8 w-8 p-0"
+                                >
+                                  <Copy className="w-4 h-4" />
+                                </Button>
+                              </div>
+                              <p className="text-sm text-foreground/60 mt-1">
+                                ≈ ${paymentDetails.amountUSD} USD
+                              </p>
+                            </div>
+
+                            <div>
+                              <Label className="text-sm text-foreground/70">To Address</Label>
+                              <div className="flex items-center gap-2 mt-1 p-3 bg-background/50 rounded-lg border border-primary/20">
+                                <code className="text-sm flex-1 break-all font-mono">
+                                  {paymentDetails.payAddress}
+                                </code>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => copyToClipboard(paymentDetails.payAddress)}
+                                  className="h-8 w-8 p-0 flex-shrink-0"
+                                >
+                                  <Copy className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </div>
+
+                            <div>
+                              <Label className="text-sm text-foreground/70">Network</Label>
+                              <p className="text-lg font-semibold mt-1">
+                                {paymentDetails.coin === "BTC" 
+                                  ? "Bitcoin" 
+                                  : paymentDetails.coin === "ETH" 
+                                  ? "Ethereum" 
+                                  : paymentDetails.coin === "BNB"
+                                  ? "Binance Smart Chain (BSC)"
+                                  : paymentDetails.coin === "USDT" 
+                                  ? "Ethereum (ERC20) - Check NOWPayments for actual network" 
+                                  : paymentDetails.coin === "USDC" 
+                                  ? "Ethereum (ERC20) - Check NOWPayments for actual network"
+                                  : paymentDetails.coin === "LTC"
+                                  ? "Litecoin"
+                                  : paymentDetails.coin === "XRP"
+                                  ? "Ripple"
+                                  : paymentDetails.coin === "DOGE"
+                                  ? "Dogecoin"
+                                  : paymentDetails.coin === "ADA"
+                                  ? "Cardano"
+                                  : paymentDetails.coin}
+                              </p>
+                              <p className="text-xs text-foreground/60 mt-1">
+                                {paymentDetails.coin === "USDT" || paymentDetails.coin === "USDC"
+                                  ? "⚠️ USDT/USDC may use ERC20, TRC20, or BSC. NOWPayments will determine the network."
+                                  : "Make sure you're using the correct network when sending."}
+                              </p>
+                            </div>
+
+                            <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                              <p className="text-sm text-amber-500 font-semibold mb-2">⚠️ Important</p>
+                              <ul className="text-xs text-foreground/70 space-y-1 list-disc list-inside">
+                                <li>Send the exact amount shown above</li>
+                                <li>Use the correct network ({paymentDetails.coin})</li>
+                                <li>Do not send from an exchange directly</li>
+                                <li>Your wallet will be credited automatically after payment confirmation</li>
+                              </ul>
+                            </div>
+
+                            <div className="flex gap-2">
+                              <Button
+                                variant="outline"
+                                className="flex-1"
+                                onClick={() => {
+                                  setPaymentDetails(null)
+                                  setDepositAmount("")
+                                  setDepositError(null)
+                                  setDepositSuccess(null)
+                                }}
+                              >
+                                New Deposit
+                              </Button>
+                              <Button
+                                className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
+                                onClick={() => {
+                                  setDepositDialogOpen(false)
+                                  setPaymentDetails(null)
+                                  setDepositAmount("")
+                                  setDepositError(null)
+                                  setDepositSuccess(null)
+                                }}
+                              >
+                                Done
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                          <p className="text-sm text-blue-500">
+                            💡 <strong>Payment Status:</strong> Waiting for payment. Your wallet will be credited automatically once the payment is confirmed on the blockchain.
+                          </p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </DialogContent>
               </Dialog>

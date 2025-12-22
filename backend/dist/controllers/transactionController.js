@@ -7,27 +7,60 @@ exports.getTransactionById = exports.getUserTransactions = exports.createWithdra
 const mongoose_1 = __importDefault(require("mongoose"));
 const TransactionModel_1 = require("../db/models/TransactionModel");
 const UserModel_1 = require("../db/models/UserModel");
+const nowpaymentsService_1 = require("../services/nowpaymentsService");
 const createDeposit = async (req, res) => {
     try {
         const userId = req.userId;
-        const { amount, paymentMethod } = req.body;
-        if (!amount || amount <= 0) {
+        const { amountUSD, coin } = req.body;
+        // Validate input
+        if (!amountUSD || amountUSD <= 0) {
             return res.status(400).json({ error: "Invalid amount" });
+        }
+        if (!coin) {
+            return res.status(400).json({ error: "Coin selection is required" });
         }
         if (!mongoose_1.default.Types.ObjectId.isValid(userId)) {
             return res.status(400).json({ error: "Invalid user ID" });
         }
+        // Get user
+        const user = await UserModel_1.UserModel.findById(userId);
+        if (!user) {
+            return res.status(404).json({ error: "User not found" });
+        }
+        // Generate unique order ID
+        const orderId = `DEP_${Date.now()}_${Math.random().toString(36).substring(2, 9).toUpperCase()}`;
+        // Create NOWPayments payment
+        const paymentResult = await (0, nowpaymentsService_1.createPayment)(amountUSD, "usd", coin.toLowerCase(), orderId, user.email || "");
+        if (!paymentResult.success || !paymentResult.data) {
+            return res.status(500).json({
+                error: paymentResult.error || "Failed to create payment",
+            });
+        }
+        const paymentData = paymentResult.data;
+        // Save deposit transaction with NOWPayments data
         const transaction = await TransactionModel_1.TransactionModel.create({
             userId: new mongoose_1.default.Types.ObjectId(userId),
             type: "deposit",
-            amount,
+            amount: amountUSD,
             status: "pending",
-            description: `Deposit via ${paymentMethod || "wallet"}`,
-            txHash: `0x${Math.random().toString(36).substring(2, 15)}`,
+            description: `Deposit via ${coin}`,
+            paymentId: paymentData.payment_id,
+            coin: coin.toUpperCase(),
+            cryptoAmount: parseFloat(paymentData.pay_amount || "0"),
+            payAddress: paymentData.pay_address,
+            paymentStatus: paymentData.payment_status || "waiting",
         });
         res.status(201).json({
-            message: "Deposit request created",
+            message: "Deposit payment created",
             transaction: transaction.toJSON(),
+            payment: {
+                paymentId: paymentData.payment_id,
+                payAddress: paymentData.pay_address,
+                payAmount: paymentData.pay_amount,
+                coin: coin.toUpperCase(),
+                amountUSD: amountUSD,
+                status: paymentData.payment_status,
+            },
         });
     }
     catch (error) {

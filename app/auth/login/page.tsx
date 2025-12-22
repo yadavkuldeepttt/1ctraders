@@ -8,11 +8,13 @@ import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp"
 import Link from "next/link"
-import { Eye, EyeOff, User, Lock, Wrench, Wallet } from "lucide-react"
+import { Eye, EyeOff, Lock, Wrench, Wallet, Mail, Shield } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/AuthContext"
 import { walletService } from "@/lib/wallet"
+import { apiClient } from "@/lib/api-client"
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
@@ -20,8 +22,14 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [walletAddress, setWalletAddress] = useState<string | null>(null)
+  const [step, setStep] = useState<"credentials" | "otp">("credentials")
+  const [otp, setOtp] = useState("")
+  const [otpSent, setOtpSent] = useState(false)
+  const [otpVerified, setOtpVerified] = useState(false)
+  const [sendingOtp, setSendingOtp] = useState(false)
+  const [verifyingOtp, setVerifyingOtp] = useState(false)
   const [formData, setFormData] = useState({
-    username: "",
+    email: "",
     password: "",
     remember: false,
   })
@@ -58,15 +66,80 @@ export default function LoginPage() {
     }
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSendOTP = async (email: string) => {
+    if (!email) {
+      setError("Email is required")
+      return
+    }
+
+    if (!/^\S+@\S+\.\S+$/.test(email)) {
+      setError("Please enter a valid email address")
+      return
+    }
+
+    setSendingOtp(true)
+    setError(null)
+
+    try {
+      const response = await apiClient.sendLoginOTP(email)
+      if (response.error) {
+        setError(response.error)
+        setSendingOtp(false)
+      } else {
+        setOtpSent(true)
+        setError(null)
+        // In development, show OTP if returned
+        if (response.data?.otp) {
+          setError(`OTP sent! (Dev mode: ${response.data.otp})`)
+        }
+        setSendingOtp(false)
+      }
+    } catch (err) {
+      setError("Failed to send OTP. Please try again.")
+      setSendingOtp(false)
+    }
+  }
+
+  const handleVerifyOTP = async () => {
+    if (!otp || otp.length !== 6) {
+      setError("Please enter a valid 6-digit OTP")
+      return
+    }
+
+    if (!formData.email) {
+      setError("Email is required")
+      return
+    }
+
+    setVerifyingOtp(true)
+    setError(null)
+
+    try {
+      const response = await apiClient.verifyLoginOTP(formData.email, otp)
+      if (response.error) {
+        setError(response.error)
+      } else {
+        setOtpVerified(true)
+        setError(null)
+        // Proceed with login after OTP verification
+        await proceedWithLogin()
+      }
+    } catch (err) {
+      setError("Failed to verify OTP. Please try again.")
+    } finally {
+      setVerifyingOtp(false)
+    }
+  }
+
+  const proceedWithLogin = async () => {
     setLoading(true)
     setError(null)
 
     try {
-      const result = await login(formData.username, formData.password)
+      // Use email as username (backend accepts both)
+      const result = await login(formData.email, formData.password)
       if (result.success) {
-    router.push("/dashboard")
+        router.push("/dashboard")
       } else {
         setError(result.error || "Login failed")
       }
@@ -76,6 +149,28 @@ export default function LoginPage() {
       setLoading(false)
     }
   }
+
+  const handleCredentialsSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError(null)
+
+    // Validate credentials are entered
+    if (!formData.email || !formData.password) {
+      setError("Please enter both email and password")
+      return
+    }
+
+    // Validate email format
+    if (!/^\S+@\S+\.\S+$/.test(formData.email)) {
+      setError("Please enter a valid email address")
+      return
+    }
+
+    // Move to OTP step and automatically send OTP
+    setStep("otp")
+    await handleSendOTP(formData.email)
+  }
+
 
   if (!mounted) {
     return (
@@ -148,70 +243,211 @@ export default function LoginPage() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="username" className="text-foreground">Username</Label>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-primary" />
-                <Input
-                  id="username"
-                  placeholder="Enter your username"
-                  className="pl-10 bg-input border-primary/30 h-12"
-                  value={formData.username}
-                  onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                  required
-                />
+          {step === "credentials" ? (
+            <form onSubmit={handleCredentialsSubmit} className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="email" className="text-foreground">Email</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-primary" />
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="Enter your email"
+                    className="pl-10 bg-input border-primary/30 h-12"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    required
+                    disabled={loading}
+                  />
+                </div>
               </div>
-            </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-foreground">Password</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-primary" />
-                <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Enter your password"
-                  className="pl-10 pr-10 bg-input border-primary/30 h-12"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground/50 hover:text-primary transition-colors"
-                >
-                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                </button>
+              <div className="space-y-2">
+                <Label htmlFor="password" className="text-foreground">Password</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-primary" />
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Enter your password"
+                    className="pl-10 pr-10 bg-input border-primary/30 h-12"
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    required
+                    disabled={loading}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground/50 hover:text-primary transition-colors"
+                  >
+                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
               </div>
-            </div>
 
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="remember"
-                  checked={formData.remember}
-                  onCheckedChange={(checked) => setFormData({ ...formData, remember: checked as boolean })}
-                />
-                <Label htmlFor="remember" className="text-sm cursor-pointer text-foreground/70">
-                  Remember Me
-                </Label>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="remember"
+                    checked={formData.remember}
+                    onCheckedChange={(checked) => setFormData({ ...formData, remember: checked as boolean })}
+                    disabled={loading}
+                  />
+                  <Label htmlFor="remember" className="text-sm cursor-pointer text-foreground/70">
+                    Remember Me
+                  </Label>
+                </div>
+                <Link href="/auth/forgot-password" className="text-sm text-primary hover:underline">
+                  Forgot Password?
+                </Link>
               </div>
-              <Link href="/auth/forgot-password" className="text-sm text-primary hover:underline">
-                Forgot Password?
-              </Link>
-            </div>
 
-            <Button
-              type="submit"
-              className="w-full bg-primary text-primary-foreground hover:bg-primary/90 border-glow py-6 text-lg font-semibold rounded-xl"
-              size="lg"
-              disabled={loading}
-            >
-              {loading ? "Signing in..." : "Sign In"}
-            </Button>
-          </form>
+              <Button
+                type="submit"
+                className="w-full bg-primary text-primary-foreground hover:bg-primary/90 border-glow py-6 text-lg font-semibold rounded-xl shadow-lg"
+                size="lg"
+                disabled={loading || sendingOtp || !formData.email || !formData.password}
+              >
+                {sendingOtp ? (
+                  <span className="flex items-center gap-2 justify-center">
+                    <span className="animate-spin">⏳</span>
+                    Sending OTP...
+                  </span>
+                ) : (
+                  "Continue"
+                )}
+              </Button>
+            </form>
+          ) : (
+            <div className="space-y-6">
+              {/* Step Indicator */}
+              <div className="flex items-center gap-2 mb-4 pb-4 border-b border-primary/20">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+                    <span className="text-sm font-bold text-primary">1</span>
+                  </div>
+                  <span className="text-sm text-foreground/70">Credentials</span>
+                </div>
+                <div className="flex-1 h-px bg-primary/20"></div>
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
+                    <span className="text-sm font-bold text-primary-foreground">2</span>
+                  </div>
+                  <span className="text-sm font-semibold text-primary">OTP Verification</span>
+                </div>
+              </div>
+
+              {/* OTP Verification Section */}
+              {otpSent && !otpVerified && (
+                <div className="space-y-4 p-5 bg-gradient-to-br from-primary/20 to-primary/10 border-2 border-primary/50 rounded-xl shadow-lg">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2 bg-primary/20 rounded-lg">
+                      <Shield className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <Label className="text-base font-bold text-foreground">Enter Verification Code</Label>
+                      <p className="text-xs text-foreground/70">Step 2 of 2</p>
+                    </div>
+                  </div>
+                  <div className="bg-card/50 p-3 rounded-lg border border-primary/30">
+                    <p className="text-xs text-foreground/70 mb-1">Code sent to:</p>
+                    <p className="text-sm font-semibold text-primary">{formData.email}</p>
+                  </div>
+                  <div className="space-y-3">
+                    <Label className="text-sm font-medium text-foreground">Enter 6-Digit Code</Label>
+                    <div className="flex justify-center py-2">
+                      <InputOTP
+                        maxLength={6}
+                        value={otp}
+                        onChange={(value) => setOtp(value)}
+                        disabled={verifyingOtp}
+                        className="gap-2"
+                      >
+                        <InputOTPGroup className="gap-2">
+                          <InputOTPSlot index={0} className="w-12 h-14 text-lg font-bold border-2 border-primary/50 data-[active=true]:border-primary data-[active=true]:ring-2 data-[active=true]:ring-primary/20" />
+                          <InputOTPSlot index={1} className="w-12 h-14 text-lg font-bold border-2 border-primary/50 data-[active=true]:border-primary data-[active=true]:ring-2 data-[active=true]:ring-primary/20" />
+                          <InputOTPSlot index={2} className="w-12 h-14 text-lg font-bold border-2 border-primary/50 data-[active=true]:border-primary data-[active=true]:ring-2 data-[active=true]:ring-primary/20" />
+                          <InputOTPSlot index={3} className="w-12 h-14 text-lg font-bold border-2 border-primary/50 data-[active=true]:border-primary data-[active=true]:ring-2 data-[active=true]:ring-primary/20" />
+                          <InputOTPSlot index={4} className="w-12 h-14 text-lg font-bold border-2 border-primary/50 data-[active=true]:border-primary data-[active=true]:ring-2 data-[active=true]:ring-primary/20" />
+                          <InputOTPSlot index={5} className="w-12 h-14 text-lg font-bold border-2 border-primary/50 data-[active=true]:border-primary data-[active=true]:ring-2 data-[active=true]:ring-primary/20" />
+                        </InputOTPGroup>
+                      </InputOTP>
+                    </div>
+                    <div className="flex gap-3 pt-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="flex-1 border-primary/50 hover:bg-primary/10"
+                        onClick={() => {
+                          setStep("credentials")
+                          setOtpSent(false)
+                          setOtp("")
+                          setError(null)
+                        }}
+                        disabled={verifyingOtp}
+                      >
+                        Back
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={handleVerifyOTP}
+                        className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg"
+                        disabled={verifyingOtp || otp.length !== 6}
+                        size="lg"
+                      >
+                        {verifyingOtp ? (
+                          <span className="flex items-center gap-2">
+                            <span className="animate-spin">⏳</span>
+                            Verifying...
+                          </span>
+                        ) : (
+                          "Verify & Sign In"
+                        )}
+                      </Button>
+                    </div>
+                    <div className="pt-2 border-t border-primary/20">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleSendOTP(formData.email)}
+                        disabled={sendingOtp}
+                        className="w-full text-sm text-primary hover:text-primary/80"
+                      >
+                        {sendingOtp ? (
+                          <span className="flex items-center gap-2 justify-center">
+                            <span className="animate-spin">⏳</span>
+                            Resending...
+                          </span>
+                        ) : (
+                          "Didn't receive code? Resend OTP"
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Show loading state while sending OTP */}
+              {!otpSent && sendingOtp && (
+                <div className="space-y-4 p-5 bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/30 rounded-xl">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2 bg-primary/20 rounded-lg">
+                      <Mail className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <Label className="text-base font-bold text-foreground">Sending OTP</Label>
+                      <p className="text-xs text-foreground/70">Please wait while we send the code...</p>
+                    </div>
+                  </div>
+                  <div className="flex justify-center py-4">
+                    <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full"></div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="mt-6 text-center text-sm">
             <span className="text-foreground/70">Don't have an account yet? </span>

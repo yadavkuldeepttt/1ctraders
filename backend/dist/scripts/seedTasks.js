@@ -50,6 +50,28 @@ const defaultTasks = [
         reward: 50,
         isActive: true,
     },
+    {
+        title: "Watch Advertisement Video",
+        description: "Watch a 30-second advertisement video to earn rewards",
+        type: "ad",
+        reward: 8,
+        isActive: true,
+    },
+    {
+        title: "Watch 3 Advertisements",
+        description: "Watch 3 advertisement videos to earn bonus rewards",
+        type: "ad",
+        reward: 25,
+        requirements: { count: 3 },
+        isActive: true,
+    },
+    {
+        title: "Daily Ad Watch",
+        description: "Watch an advertisement video daily to earn consistent rewards",
+        type: "ad",
+        reward: 10,
+        isActive: true,
+    },
 ];
 async function seedTasks() {
     try {

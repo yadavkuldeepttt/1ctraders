@@ -8,72 +8,14 @@ import { DashboardLayout } from "@/components/dashboard-layout"
 import { ProtectedRoute } from "@/components/protected-route"
 import { useAuth } from "@/contexts/AuthContext"
 import { apiClient } from "@/lib/api-client"
-import { CheckCircle2, Clock, Gift, Twitter, Youtube, Share2, MessageSquare } from "lucide-react"
+import { CheckCircle2, Clock, Gift, Share2, PlayCircle } from "lucide-react"
+import { toast } from "sonner"
 
 export default function TasksPage() {
   const { user, refreshUser } = useAuth()
   const [loading, setLoading] = useState(true)
   const [tasks, setTasks] = useState<any[]>([])
   const [error, setError] = useState<string | null>(null)
-  
-  const [initialTasks] = useState([
-    {
-      id: 1,
-      title: "Follow us on Twitter",
-      reward: 10,
-      icon: Twitter,
-      status: "available",
-      description: "Follow our official Twitter account",
-      action: "Follow",
-    },
-    {
-      id: 2,
-      title: "Subscribe to YouTube",
-      reward: 15,
-      icon: Youtube,
-      status: "completed",
-      description: "Subscribe to our YouTube channel",
-      action: "Subscribe",
-    },
-    {
-      id: 3,
-      title: "Share on Social Media",
-      reward: 20,
-      icon: Share2,
-      status: "available",
-      description: "Share 1C Traders on your social media",
-      action: "Share",
-    },
-    {
-      id: 4,
-      title: "Join Telegram Community",
-      reward: 10,
-      icon: MessageSquare,
-      status: "pending",
-      description: "Join our Telegram community channel",
-      action: "Join",
-    },
-    {
-      id: 5,
-      title: "Daily Check-in",
-      reward: 5,
-      icon: CheckCircle2,
-      status: "completed",
-      description: "Complete your daily check-in",
-      action: "Check-in",
-    },
-    {
-      id: 6,
-      title: "Invite 5 Friends",
-      reward: 50,
-      icon: Gift,
-      status: "available",
-      description: "Invite 5 friends to join 1C Traders",
-      action: "Invite",
-      progress: 2,
-      progressMax: 5,
-    },
-  ])
 
   const stats = {
     totalEarned: tasks.filter((t: any) => t.status === "completed" || t.userStatus === "completed").reduce((acc: number, t: any) => acc + (t.reward || 0), 0),
@@ -86,8 +28,7 @@ export default function TasksPage() {
     const loadTasks = async () => {
       if (!user) {
         setLoading(false)
-        // Use initial tasks if no user
-        setTasks(initialTasks)
+        setTasks([])
         return
       }
 
@@ -98,76 +39,18 @@ export default function TasksPage() {
         
         if (response.error) {
           console.warn("Tasks API error:", response.error)
-          // Always fallback to initial tasks on error
-          setTasks(initialTasks)
+          setError("Failed to load tasks")
+          setTasks([])
         } else if (response.data) {
           const fetchedTasks = response.data.tasks || []
-          // If no tasks from API, use initial tasks
-          if (fetchedTasks.length === 0) {
-            console.log("No tasks from API, using initial tasks")
-            setTasks(initialTasks)
-          } else {
-            // Map API tasks to include icons
-            const tasksWithIcons = fetchedTasks.map((task: any) => {
-              const iconMap: Record<string, any> = {
-                social: Share2,
-                referral: Gift,
-                daily: CheckCircle2,
-                special: Gift,
-              }
-              return {
-                ...task,
-                icon: iconMap[task.type] || Gift,
-                status: task.userStatus || task.status || "available",
-              }
-            })
-            setTasks(tasksWithIcons)
-          }
-        } else {
-          // Fallback to initial tasks if API returns nothing
-          console.log("No data from API, using initial tasks")
-          setTasks(initialTasks)
-        }
-      } catch (err) {
-        console.error("Failed to load tasks:", err)
-        setError("Failed to load tasks. Showing default tasks.")
-        // Always use initial tasks as fallback
-        setTasks(initialTasks)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    loadTasks()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user])
-
-  const handleCompleteTask = async (taskId: string) => {
-    try {
-      // Check if user has already completed 5 tasks
-      const completedCount = tasks.filter((t: any) => t.status === "completed" || t.userStatus === "completed").length
-      if (completedCount >= 5) {
-        alert("You have already completed the maximum of 5 tasks. Complete your investments to earn more!")
-        return
-      }
-
-      const response = await apiClient.completeTask(taskId)
-      if (response.data) {
-        // Show success message
-        if (response.message) {
-          alert(response.message)
-        }
-        
-        // Reload tasks to show updated status
-        const tasksResponse = await apiClient.getAvailableTasks()
-        if (tasksResponse.data) {
-          const fetchedTasks = tasksResponse.data.tasks || []
+          // Map API tasks to include icons
           const tasksWithIcons = fetchedTasks.map((task: any) => {
             const iconMap: Record<string, any> = {
               social: Share2,
               referral: Gift,
               daily: CheckCircle2,
               special: Gift,
+              ad: PlayCircle,
             }
             return {
               ...task,
@@ -175,17 +58,107 @@ export default function TasksPage() {
               status: task.userStatus || task.status || "available",
             }
           })
-          setTasks(tasksWithIcons.length > 0 ? tasksWithIcons : initialTasks)
+          setTasks(tasksWithIcons)
+        } else {
+          setTasks([])
         }
-        
-        // Refresh user data to show updated points
-        await refreshUser()
-      } else if (response.error) {
-        alert(response.error)
+      } catch (err) {
+        console.error("Failed to load tasks:", err)
+        setError("Failed to load tasks")
+        setTasks([])
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadTasks()
+  }, [user])
+
+  const handleCompleteTask = async (taskId: string) => {
+    try {
+      // Check if user has already completed 5 tasks
+      const completedCount = tasks.filter((t: any) => t.status === "completed" || t.userStatus === "completed").length
+      if (completedCount >= 5) {
+        toast.error("Task Limit Reached", {
+          description: "You have already completed the maximum of 5 tasks.",
+        })
+        return
+      }
+
+      // Find the task
+      const task = tasks.find((t: any) => (t.id || t._id) === taskId)
+      if (!task) {
+        toast.error("Task not found")
+        return
+      }
+
+      // Immediately update UI to show completed
+      setTasks((prevTasks) =>
+        prevTasks.map((t: any) => {
+          if ((t.id || t._id) === taskId) {
+            return {
+              ...t,
+              status: "completed",
+              userStatus: "completed",
+            }
+          }
+          return t
+        })
+      )
+
+      // Show success toast
+      toast.success("Task Completed!", {
+        description: `You earned ${task.reward} points. Points will convert to money automatically after 24 hours.`,
+        duration: 3000,
+      })
+
+      // Call API in background to actually complete the task
+      try {
+        const response = await apiClient.completeTask(taskId)
+        if (response.error) {
+          // Revert UI change if API call failed
+          setTasks((prevTasks) =>
+            prevTasks.map((t: any) => {
+              if ((t.id || t._id) === taskId) {
+                return {
+                  ...t,
+                  status: task.status || "available",
+                  userStatus: task.userStatus || "available",
+                }
+              }
+              return t
+            })
+          )
+          toast.error("Failed to complete task", {
+            description: response.error,
+          })
+        } else {
+          // Refresh user data to show updated points
+          await refreshUser()
+        }
+      } catch (error) {
+        // Revert UI change if API call failed
+        setTasks((prevTasks) =>
+          prevTasks.map((t: any) => {
+            if ((t.id || t._id) === taskId) {
+              return {
+                ...t,
+                status: task.status || "available",
+                userStatus: task.userStatus || "available",
+              }
+            }
+            return t
+          })
+        )
+        toast.error("Failed to complete task", {
+          description: "Please try again.",
+        })
       }
     } catch (error) {
       console.error("Failed to complete task:", error)
-      alert("Failed to complete task. Please try again.")
+      toast.error("Error", {
+        description: "Failed to complete task. Please try again.",
+      })
     }
   }
 
@@ -323,6 +296,22 @@ export default function TasksPage() {
                   </div>
                 </div>
 
+                {task.type === "ad" && task.status !== "completed" && task.userStatus !== "completed" && (
+                  <div className="mb-4 p-4 bg-primary/10 border border-primary/30 rounded-lg">
+                    <div className="aspect-video bg-background/50 rounded-lg flex items-center justify-center mb-3 relative overflow-hidden">
+                      <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-primary/5"></div>
+                      <div className="relative z-10 text-center">
+                        <PlayCircle className="w-16 h-16 text-primary mx-auto mb-2" />
+                        <p className="text-sm text-foreground/70">Advertisement Video</p>
+                        <p className="text-xs text-foreground/50 mt-1">30 seconds</p>
+                      </div>
+                    </div>
+                    <p className="text-xs text-foreground/60 text-center">
+                      Click "Watch Ad" to view the advertisement and earn rewards
+                    </p>
+                  </div>
+                )}
+
                 {task.progress !== undefined && (
                   <div className="mb-4">
                     <div className="flex justify-between text-sm mb-2">
@@ -359,7 +348,11 @@ export default function TasksPage() {
                       onClick={() => handleCompleteTask(task.id || task._id)}
                       disabled={stats.completedTasks >= 5}
                     >
-                      {stats.completedTasks >= 5 ? "Limit Reached" : (task.action || "Complete")}
+                      {stats.completedTasks >= 5
+                        ? "Limit Reached"
+                        : task.type === "ad"
+                          ? "Watch Ad"
+                          : task.action || "Complete"}
                     </Button>
                   )}
                 </div>

@@ -6,7 +6,7 @@ import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { LayoutDashboard, Users, TrendingUp, DollarSign, LogOut, Menu, X, Shield, CheckSquare } from "lucide-react"
+import { LayoutDashboard, Users, TrendingUp, DollarSign, LogOut, Menu, X, Shield, CheckSquare, Bell } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useRouter } from "next/navigation"
 
@@ -16,6 +16,7 @@ const navigation = [
   { name: "Investments", href: "/admin/investments", icon: TrendingUp },
   { name: "Withdrawals", href: "/admin/withdrawals", icon: DollarSign },
   { name: "Tasks", href: "/admin/tasks", icon: CheckSquare },
+  { name: "Notifications", href: "/admin/notifications", icon: Bell },
 ]
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {

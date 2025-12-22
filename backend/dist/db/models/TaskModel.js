@@ -47,7 +47,7 @@ const TaskSchema = new mongoose_1.Schema({
     },
     type: {
         type: String,
-        enum: ["social", "referral", "daily", "special"],
+        enum: ["social", "referral", "daily", "special", "ad"],
         required: true,
     },
     reward: {

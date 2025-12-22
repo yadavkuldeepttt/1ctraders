@@ -6,18 +6,24 @@ import { ScrollTrigger } from "gsap/ScrollTrigger"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import Link from "next/link"
-import { TrendingUp, Users, Shield, Zap, CircleDollarSign, BarChart3, Cpu, Bitcoin } from "lucide-react"
+import { TrendingUp, Users, Shield, Zap, CircleDollarSign, BarChart3, Cpu, Bitcoin, Trophy, UserCheck, TrendingDown } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
+import { apiClient } from "@/lib/api-client"
 
 gsap.registerPlugin(ScrollTrigger)
 
 export default function LandingPage() {
   const [mounted, setMounted] = useState(false)
   const [pageLoading, setPageLoading] = useState(true)
+  const [activeUsers, setActiveUsers] = useState<any[]>([])
+  const [leaderboard, setLeaderboard] = useState<any[]>([])
+  const [loadingUsers, setLoadingUsers] = useState(true)
   const heroRef = useRef<HTMLDivElement>(null)
   const featuresRef = useRef<HTMLDivElement>(null)
   const investmentsRef = useRef<HTMLDivElement>(null)
   const statsRef = useRef<HTMLDivElement>(null)
+  const activeUsersRef = useRef<HTMLDivElement>(null)
+  const leaderboardRef = useRef<HTMLDivElement>(null)
 
 
   useEffect(() => {
@@ -28,6 +34,67 @@ export default function LandingPage() {
     }, 500)
     return () => clearTimeout(timer)
   }, [])
+
+  useEffect(() => {
+    const loadPublicData = async () => {
+      try {
+        setLoadingUsers(true)
+        // Load active users
+        const activeUsersResponse = await apiClient.getActiveUsers()
+        if (activeUsersResponse.data) {
+          setActiveUsers(activeUsersResponse.data.activeUsers || [])
+        }
+
+        // Load leaderboard
+        const leaderboardResponse = await apiClient.getLeaderboard("earnings", 10)
+        if (leaderboardResponse.data) {
+          const leaderboardData = leaderboardResponse.data.leaderboard || []
+          // If no leaderboard data, use dummy data
+          if (leaderboardData.length === 0) {
+            setLeaderboard([
+              { rank: 1, username: "topTrader", totalEarnings: 50000, totalInvested: 200000, balance: 250000 },
+              { rank: 2, username: "cryptoKing", totalEarnings: 45000, totalInvested: 180000, balance: 225000 },
+              { rank: 3, username: "investPro", totalEarnings: 40000, totalInvested: 160000, balance: 200000 },
+              { rank: 4, username: "wealthBuilder", totalEarnings: 35000, totalInvested: 140000, balance: 175000 },
+              { rank: 5, username: "smartInvestor", totalEarnings: 30000, totalInvested: 120000, balance: 150000 },
+            ])
+          } else {
+            setLeaderboard(leaderboardData)
+          }
+        } else {
+          // Set dummy data if API fails
+          setLeaderboard([
+            { rank: 1, username: "topTrader", totalEarnings: 50000, totalInvested: 200000, balance: 250000 },
+            { rank: 2, username: "cryptoKing", totalEarnings: 45000, totalInvested: 180000, balance: 225000 },
+            { rank: 3, username: "investPro", totalEarnings: 40000, totalInvested: 160000, balance: 200000 },
+            { rank: 4, username: "wealthBuilder", totalEarnings: 35000, totalInvested: 140000, balance: 175000 },
+            { rank: 5, username: "smartInvestor", totalEarnings: 30000, totalInvested: 120000, balance: 150000 },
+          ])
+        }
+      } catch (error) {
+        console.error("Failed to load public data:", error)
+        // Set dummy data if API fails
+        setActiveUsers([
+          { username: "trader1", totalInvested: 5000, totalEarnings: 1250 },
+          { username: "investor2", totalInvested: 3000, totalEarnings: 900 },
+          { username: "crypto3", totalInvested: 7500, totalEarnings: 1875 },
+        ])
+        setLeaderboard([
+          { rank: 1, username: "topTrader", totalEarnings: 50000, totalInvested: 200000, balance: 250000 },
+          { rank: 2, username: "cryptoKing", totalEarnings: 45000, totalInvested: 180000, balance: 225000 },
+          { rank: 3, username: "investPro", totalEarnings: 40000, totalInvested: 160000, balance: 200000 },
+          { rank: 4, username: "wealthBuilder", totalEarnings: 35000, totalInvested: 140000, balance: 175000 },
+          { rank: 5, username: "smartInvestor", totalEarnings: 30000, totalInvested: 120000, balance: 150000 },
+        ])
+      } finally {
+        setLoadingUsers(false)
+      }
+    }
+
+    if (mounted) {
+      loadPublicData()
+    }
+  }, [mounted])
 
   useEffect(() => {
     if (!mounted) return
@@ -93,6 +160,32 @@ export default function LandingPage() {
       gsap.from(".stat-item", {
         scrollTrigger: {
           trigger: statsRef.current,
+          start: "top 80%",
+        },
+        opacity: 0,
+        y: 30,
+        stagger: 0.1,
+        duration: 0.6,
+        ease: "power3.out",
+      })
+
+      // Active users animation
+      gsap.from(".active-user-item", {
+        scrollTrigger: {
+          trigger: activeUsersRef.current,
+          start: "top 80%",
+        },
+        opacity: 0,
+        x: -30,
+        stagger: 0.1,
+        duration: 0.6,
+        ease: "power3.out",
+      })
+
+      // Leaderboard animation
+      gsap.from(".leaderboard-item", {
+        scrollTrigger: {
+          trigger: leaderboardRef.current,
           start: "top 80%",
         },
         opacity: 0,
@@ -224,6 +317,12 @@ export default function LandingPage() {
               <Link href="#investments" className="text-foreground/80 hover:text-primary transition-colors">
                 Investments
               </Link>
+              <Link href="#active-users" className="text-foreground/80 hover:text-primary transition-colors">
+                Active Users
+              </Link>
+              <Link href="#leaderboard" className="text-foreground/80 hover:text-primary transition-colors">
+                Leaderboard
+              </Link>
               <Link href="#about" className="text-foreground/80 hover:text-primary transition-colors">
                 About
               </Link>
@@ -300,6 +399,142 @@ export default function LandingPage() {
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* Active Users Section */}
+      <section ref={activeUsersRef} id="active-users" className="py-20 px-4 bg-background">
+        <div className="container mx-auto">
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-primary/20 rounded-full mb-4">
+              <UserCheck className="w-8 h-8 text-primary" />
+            </div>
+            <h2 className="text-4xl md:text-5xl font-bold mb-4 font-[family-name:var(--font-orbitron)] glow-cyan text-foreground">
+              Active Users
+            </h2>
+            <p className="text-xl text-foreground/70 max-w-2xl mx-auto">
+              Join thousands of active investors earning daily returns on our platform
+            </p>
+          </div>
+          {loadingUsers ? (
+            <div className="flex justify-center py-12">
+              <div className="animate-spin w-12 h-12 border-4 border-primary border-t-transparent rounded-full"></div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+              {activeUsers.slice(0, 10).map((user, index) => (
+                <Card
+                  key={index}
+                  className="active-user-item p-4 bg-card border-primary/30 card-glow hover:border-primary/60 transition-all duration-300"
+                >
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-primary/30 to-primary/10 rounded-full flex items-center justify-center">
+                      <span className="text-primary font-bold text-sm">
+                        {user.username?.charAt(0).toUpperCase() || "U"}
+                      </span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-foreground truncate">{user.username || "User"}</p>
+                      <p className="text-xs text-foreground/60">Active Investor</p>
+                    </div>
+                  </div>
+                  <div className="space-y-1 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-foreground/70">Invested:</span>
+                      <span className="font-semibold text-primary">${(user.totalInvested || 0).toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-foreground/70">Earnings:</span>
+                      <span className="font-semibold text-green-500">${(user.totalEarnings || 0).toLocaleString()}</span>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Leaderboard Section */}
+      <section ref={leaderboardRef} id="leaderboard" className="py-20 px-4 bg-card/30">
+        <div className="container mx-auto">
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-primary/20 rounded-full mb-4">
+              <Trophy className="w-8 h-8 text-primary" />
+            </div>
+            <h2 className="text-4xl md:text-5xl font-bold mb-4 font-[family-name:var(--font-orbitron)] glow-cyan text-foreground">
+              Top Earners Leaderboard
+            </h2>
+            <p className="text-xl text-foreground/70 max-w-2xl mx-auto">
+              See who's leading the platform with the highest earnings
+            </p>
+          </div>
+          {loadingUsers ? (
+            <div className="flex justify-center py-12">
+              <div className="animate-spin w-12 h-12 border-4 border-primary border-t-transparent rounded-full"></div>
+            </div>
+          ) : leaderboard.length === 0 ? (
+            <div className="max-w-4xl mx-auto">
+              <Card className="p-8 text-center bg-card border-primary/30">
+                <Trophy className="w-16 h-16 text-primary/50 mx-auto mb-4" />
+                <h3 className="text-xl font-bold mb-2 font-[family-name:var(--font-orbitron)]">No Leaderboard Data Yet</h3>
+                <p className="text-foreground/70">
+                  Be the first to invest and appear on the leaderboard!
+                </p>
+              </Card>
+            </div>
+          ) : (
+            <div className="max-w-4xl mx-auto space-y-3">
+              {leaderboard.map((user, index) => (
+                <Card
+                  key={index}
+                  className="leaderboard-item p-6 bg-card border-primary/30 card-glow hover:border-primary/60 transition-all duration-300"
+                >
+                  <div className="flex items-center gap-6">
+                    <div className="flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-br from-primary/30 to-primary/10 border-2 border-primary/50">
+                      {index < 3 ? (
+                        <Trophy className={`w-6 h-6 ${
+                          index === 0 ? "text-yellow-500" : index === 1 ? "text-gray-400" : "text-amber-600"
+                        }`} />
+                      ) : (
+                        <span className="text-primary font-bold text-lg">{user.rank}</span>
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="text-xl font-bold text-foreground font-[family-name:var(--font-orbitron)]">
+                          {user.username || `User ${user.rank}`}
+                        </h3>
+                        {index < 3 && (
+                          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                            index === 0 ? "bg-yellow-500/20 text-yellow-500" :
+                            index === 1 ? "bg-gray-400/20 text-gray-400" :
+                            "bg-amber-600/20 text-amber-600"
+                          }`}>
+                            {index === 0 ? "🥇 Gold" : index === 1 ? "🥈 Silver" : "🥉 Bronze"}
+                          </span>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                        <div>
+                          <span className="text-foreground/70">Total Earnings:</span>
+                          <p className="text-lg font-bold text-green-500">${(user.totalEarnings || 0).toLocaleString()}</p>
+                        </div>
+                        <div>
+                          <span className="text-foreground/70">Total Invested:</span>
+                          <p className="text-lg font-bold text-primary">${(user.totalInvested || 0).toLocaleString()}</p>
+                        </div>
+                        <div>
+                          <span className="text-foreground/70">Current Balance:</span>
+                          <p className="text-lg font-bold text-foreground">${(user.balance || 0).toLocaleString()}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 

@@ -140,6 +140,22 @@ export const completeTask = async (req: Request, res: Response): Promise<Control
       user.pendingPoints = (user.pendingPoints || 0) + task.reward
       await user.save()
 
+      // Create notification for task completion
+      try {
+        const { createNotification } = await import("../services/notificationService")
+        await createNotification({
+          userId: userId,
+          title: "Task Completed!",
+          message: `You completed "${task.title}" and earned ${task.reward} points. Points will convert to money automatically.`,
+          type: "task",
+          relatedId: taskId,
+          relatedType: "task",
+        })
+      } catch (notifError) {
+        console.error("Error creating task completion notification:", notifError)
+        // Don't fail the request if notification creation fails
+      }
+
       // Note: Points will be converted to money automatically by the scheduler
     }
 

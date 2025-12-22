@@ -15,6 +15,11 @@ const referralRoutes_1 = __importDefault(require("./routes/referralRoutes"));
 const taskRoutes_1 = __importDefault(require("./routes/taskRoutes"));
 const adminRoutes_1 = __importDefault(require("./routes/adminRoutes"));
 const adminAuthRoutes_1 = __importDefault(require("./routes/adminAuthRoutes"));
+const otpRoutes_1 = __importDefault(require("./routes/otpRoutes"));
+const paymentRoutes_1 = __importDefault(require("./routes/paymentRoutes"));
+const publicRoutes_1 = __importDefault(require("./routes/publicRoutes"));
+const dummyDataRoutes_1 = __importDefault(require("./routes/dummyDataRoutes"));
+const notificationRoutes_1 = __importDefault(require("./routes/notificationRoutes"));
 const errorMiddleware_1 = require("./middleware/errorMiddleware");
 const connection_1 = __importDefault(require("./db/connection"));
 const scheduler_1 = require("./services/scheduler");
@@ -31,6 +36,8 @@ app.use((0, cors_1.default)({
     allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
 }));
 app.use((0, morgan_1.default)("dev"));
+// Raw body parser for NOWPayments webhook (must be before json parser)
+app.use("/api/payments/nowpayments/ipn", express_1.default.raw({ type: "application/json" }));
 app.use(express_1.default.json({ limit: "10mb" }));
 app.use(express_1.default.urlencoded({ extended: true, limit: "10mb" }));
 // Health check
@@ -43,6 +50,11 @@ app.use("/api/investments", investmentRoutes_1.default);
 app.use("/api/transactions", transactionRoutes_1.default);
 app.use("/api/referrals", referralRoutes_1.default);
 app.use("/api/tasks", taskRoutes_1.default);
+app.use("/api/otp", otpRoutes_1.default);
+app.use("/api/payments", paymentRoutes_1.default);
+app.use("/api/public", publicRoutes_1.default);
+app.use("/api/dummy", dummyDataRoutes_1.default);
+app.use("/api/notifications", notificationRoutes_1.default);
 // CRITICAL: Admin auth routes MUST be registered BEFORE admin routes
 // This ensures /api/admin/auth/* routes are matched before /api/admin/* routes
 // Admin auth routes are PUBLIC (no authentication required)
