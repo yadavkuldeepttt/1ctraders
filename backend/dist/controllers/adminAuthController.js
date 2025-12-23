@@ -7,7 +7,9 @@ exports.getAdminProfile = exports.createAdmin = exports.adminLogin = void 0;
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const mongoose_1 = __importDefault(require("mongoose"));
+const dotenv_1 = __importDefault(require("dotenv"));
 const UserModel_1 = require("../db/models/UserModel");
+dotenv_1.default.config();
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production";
 /**
  * Admin Login

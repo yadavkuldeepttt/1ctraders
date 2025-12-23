@@ -6,7 +6,7 @@ import { adminMiddleware } from "../middleware/adminMiddleware"
 const router = Router()
 
 // Test route to verify routing is working
-router.get("/test", (_req, res) => {
+router.get("/test", (_req: any, res: any) => {
   res.json({ message: "Admin auth routes are working", timestamp: new Date().toISOString() })
 })
 

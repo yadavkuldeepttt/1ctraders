@@ -2,6 +2,9 @@ import type { Request, Response } from "express"
 import { sendOTP, verifyOTP } from "../services/otpService"
 import { UserModel } from "../db/models/UserModel"
 import mongoose from "mongoose"
+import dotenv from "dotenv"
+
+dotenv.config()
 
 type ControllerResponse = Response | void
 

@@ -1,6 +1,9 @@
 import { UserModel } from "../db/models/UserModel"
 import { TransactionModel } from "../db/models/TransactionModel"
 import { UserTaskModel } from "../db/models/TaskModel"
+import dotenv from "dotenv"
+
+dotenv.config()
 
 // Points to money conversion rate: 1 point = $0.01 (100 points = $1)
 const POINTS_TO_MONEY_RATE = 0.01

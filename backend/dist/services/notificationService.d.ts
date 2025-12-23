@@ -41,7 +41,7 @@ export declare const markAsRead: (notificationId: string, userId: string) => Pro
     _id: mongoose.Types.ObjectId;
 }> & {
     __v: number;
-}> | undefined>;
+}>>;
 /**
  * Mark all notifications as read for a user
  */

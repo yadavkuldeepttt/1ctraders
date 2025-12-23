@@ -319,15 +319,7 @@ export default function WalletPage() {
                             <div className="flex flex-col items-center gap-4 p-4 bg-background/50 rounded-lg border border-primary/20">
                               <div className="p-4 bg-white rounded-lg">
                                 <QRCodeSVG
-                                  value={
-                                    paymentDetails.coin === "ETH" || paymentDetails.coin === "BNB"
-                                      ? `ethereum:${paymentDetails.payAddress}?value=${paymentDetails.payAmount}`
-                                      : paymentDetails.coin === "BTC"
-                                      ? `bitcoin:${paymentDetails.payAddress}?amount=${paymentDetails.payAmount}`
-                                      : paymentDetails.coin === "USDT" || paymentDetails.coin === "USDC"
-                                      ? `ethereum:${paymentDetails.payAddress}?value=${paymentDetails.payAmount}`
-                                      : paymentDetails.payAddress
-                                  }
+                                  value={paymentDetails.payAddress}
                                   size={200}
                                   level="H"
                                   includeMargin={true}
@@ -337,7 +329,7 @@ export default function WalletPage() {
                                 <p className="text-sm text-foreground/70 mb-1">Scan QR Code</p>
                                 <p className="text-xs text-foreground/60">Use your crypto wallet to scan and send payment</p>
                                 <p className="text-xs text-primary mt-1 font-semibold">
-                                  Address & amount will auto-fill in MetaMask
+                                  Scan to get payment address. Enter amount manually: {paymentDetails.payAmount} {paymentDetails.coin}
                                 </p>
                               </div>
                             </div>

@@ -1,5 +1,8 @@
 import { processDailyROI } from "./dailyRoiService"
 import { convertPointsToMoney } from "./pointsConversionService"
+import dotenv from "dotenv"
+
+dotenv.config()
 
 /**
  * Schedule daily ROI processing

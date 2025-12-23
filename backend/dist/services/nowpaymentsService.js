@@ -1,4 +1,37 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -9,8 +42,14 @@ exports.getPaymentStatus = getPaymentStatus;
 exports.verifyIPNSignature = verifyIPNSignature;
 exports.getAvailableCurrencies = getAvailableCurrencies;
 const axios_1 = __importDefault(require("axios"));
-const crypto_1 = __importDefault(require("crypto"));
-const NOWPAYMENTS_API_URL = "https://api.nowpayments.io/v1";
+const crypto = __importStar(require("crypto"));
+const dotenv_1 = __importDefault(require("dotenv"));
+dotenv_1.default.config();
+// Use sandbox/testnet for testing, mainnet for production
+const USE_TESTNET = process.env.NOWPAYMENTS_USE_TESTNET === "true" || process.env.NODE_ENV === "development";
+const NOWPAYMENTS_API_URL = USE_TESTNET
+    ? "https://api-sandbox.nowpayments.io/v1" // Sandbox/testnet URL
+    : "https://api.nowpayments.io/v1"; // Production/mainnet URL
 const API_KEY = process.env.NOWPAYMENTS_API_KEY || "";
 const IPN_SECRET_KEY = process.env.NOWPAYMENTS_IPN_SECRET_KEY || "";
 /**
@@ -49,14 +88,18 @@ orderId, customerEmail) {
         if (customerEmail) {
             paymentData.customer_email = customerEmail;
         }
-        console.log(paymentData);
-        console.log(API_KEY);
-        console.log(NOWPAYMENTS_API_URL);
-        console.log(paymentData);
-        console.log(paymentData);
+        // Log environment info (helpful for debugging)
+        if (USE_TESTNET) {
+            console.log("🧪 NOWPayments TESTNET/SANDBOX mode enabled");
+            console.log("📝 API URL:", NOWPAYMENTS_API_URL);
+        }
+        else {
+            console.log("💰 NOWPayments MAINNET mode");
+            console.log("📝 API URL:", NOWPAYMENTS_API_URL);
+        }
         const response = await axios_1.default.post(`${NOWPAYMENTS_API_URL}/payment`, paymentData, {
             headers: {
-                "x-api-key": "E612Y7V-B354HZS-GCF5T47-KHGDN18",
+                "x-api-key": API_KEY || "E612Y7V-B354HZS-GCF5T47-KHGDN18",
                 "Content-Type": "application/json",
             },
         });
@@ -74,7 +117,7 @@ async function getPaymentStatus(paymentId) {
     try {
         const response = await axios_1.default.get(`${NOWPAYMENTS_API_URL}/payment/${paymentId}`, {
             headers: {
-                "x-api-key": API_KEY,
+                "x-api-key": API_KEY || "E612Y7V-B354HZS-GCF5T47-KHGDN18",
             },
         });
         return { success: true, data: response.data };
@@ -93,7 +136,7 @@ function verifyIPNSignature(rawBody, signature) {
             console.warn("IPN_SECRET_KEY not configured, skipping signature verification");
             return true; // Allow in development if not configured
         }
-        const hmac = crypto_1.default.createHmac("sha512", IPN_SECRET_KEY);
+        const hmac = crypto.createHmac("sha512", IPN_SECRET_KEY);
         const bodyString = typeof rawBody === "string" ? rawBody : rawBody.toString();
         const calculatedSignature = hmac.update(bodyString).digest("hex");
         return calculatedSignature === signature;
@@ -110,7 +153,7 @@ async function getAvailableCurrencies() {
     try {
         const response = await axios_1.default.get(`${NOWPAYMENTS_API_URL}/currencies`, {
             headers: {
-                "x-api-key": API_KEY,
+                "x-api-key": API_KEY || "E612Y7V-B354HZS-GCF5T47-KHGDN18",
             },
         });
         return { success: true, data: response.data };

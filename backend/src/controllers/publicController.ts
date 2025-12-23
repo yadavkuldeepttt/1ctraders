@@ -15,6 +15,7 @@ export const getActiveUsers = async (_req: Request, res: Response): Promise<Cont
 
     const activeUsers = await UserModel.find({
       status: "active",
+      role: "user", // Exclude admin users
       $or: [
         { totalInvested: { $gt: 0 } },
         { updatedAt: { $gte: sevenDaysAgo } },
@@ -59,6 +60,7 @@ export const getLeaderboard = async (req: Request, res: Response): Promise<Contr
 
     const leaderboard = await UserModel.find({
       status: "active",
+      role: "user", // Exclude admin users
       [sortField]: { $gt: 0 },
     })
       .select("username email totalInvested totalEarnings balance createdAt")

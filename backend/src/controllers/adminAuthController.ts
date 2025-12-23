@@ -2,7 +2,10 @@ import type { Request, Response } from "express"
 import bcrypt from "bcryptjs"
 import jwt from "jsonwebtoken"
 import mongoose from "mongoose"
+import dotenv from "dotenv"
 import { UserModel } from "../db/models/UserModel"
+
+dotenv.config()
 
 type ControllerResponse = Response | void
 

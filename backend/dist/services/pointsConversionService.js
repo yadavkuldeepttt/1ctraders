@@ -1,9 +1,14 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.convertPointsToMoney = convertPointsToMoney;
 const UserModel_1 = require("../db/models/UserModel");
 const TransactionModel_1 = require("../db/models/TransactionModel");
 const TaskModel_1 = require("../db/models/TaskModel");
+const dotenv_1 = __importDefault(require("dotenv"));
+dotenv_1.default.config();
 // Points to money conversion rate: 1 point = $0.01 (100 points = $1)
 const POINTS_TO_MONEY_RATE = 0.01;
 // Conversion delay in hours (default: 24 hours)

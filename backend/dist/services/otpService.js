@@ -8,6 +8,8 @@ exports.sendOTP = sendOTP;
 exports.verifyOTP = verifyOTP;
 exports.cleanupExpiredOTPs = cleanupExpiredOTPs;
 const nodemailer_1 = __importDefault(require("nodemailer"));
+const dotenv_1 = __importDefault(require("dotenv"));
+dotenv_1.default.config();
 // Store OTPs in memory (in production, use Redis)
 const otpStore = new Map();
 // OTP expires in 10 minutes

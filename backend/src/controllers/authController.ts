@@ -1,4 +1,7 @@
 import type { Request, Response } from "express"
+import dotenv from "dotenv"
+
+dotenv.config()
 
 type ControllerResponse = Response | void
 import bcrypt from "bcryptjs"
@@ -6,6 +9,7 @@ import jwt from "jsonwebtoken"
 import mongoose from "mongoose"
 import type { CreateUserDTO } from "../models/User"
 import { UserModel } from "../db/models/UserModel"
+import { ReferralModel } from "../db/models/ReferralModel"
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production"
 
@@ -48,6 +52,42 @@ export const register = async (req: Request, res: Response): Promise<ControllerR
       emailVerified: false,
       twoFactorEnabled: false,
     })
+
+    // Create referral record if referral code was provided
+    if (referralCode) {
+      const referrer = await UserModel.findOne({ referralCode: referralCode })
+      if (referrer) {
+        // Create level 1 referral (direct)
+        await ReferralModel.create({
+          referrerId: new mongoose.Types.ObjectId(referrer._id),
+          referredUserId: new mongoose.Types.ObjectId(newUser._id),
+          level: 1,
+          totalEarnings: 0,
+          status: "active",
+        })
+
+        // Create referral records for levels 2-12 (upline chain)
+        let currentReferrer = referrer
+        for (let level = 2; level <= 12; level++) {
+          if (!currentReferrer.referredBy) break
+
+          const uplineReferrer = await UserModel.findOne({
+            referralCode: currentReferrer.referredBy,
+          })
+          if (!uplineReferrer) break
+
+          await ReferralModel.create({
+            referrerId: new mongoose.Types.ObjectId(uplineReferrer._id),
+            referredUserId: new mongoose.Types.ObjectId(newUser._id),
+            level,
+            totalEarnings: 0,
+            status: "active",
+          })
+
+          currentReferrer = uplineReferrer
+        }
+      }
+    }
 
     // Create JWT token
     const token = jwt.sign(

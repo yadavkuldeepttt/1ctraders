@@ -13,6 +13,7 @@ const getActiveUsers = async (_req, res) => {
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
         const activeUsers = await UserModel_1.UserModel.find({
             status: "active",
+            role: "user", // Exclude admin users
             $or: [
                 { totalInvested: { $gt: 0 } },
                 { updatedAt: { $gte: sevenDaysAgo } },
@@ -55,6 +56,7 @@ const getLeaderboard = async (req, res) => {
         }
         const leaderboard = await UserModel_1.UserModel.find({
             status: "active",
+            role: "user", // Exclude admin users
             [sortField]: { $gt: 0 },
         })
             .select("username email totalInvested totalEarnings balance createdAt")

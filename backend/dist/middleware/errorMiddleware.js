@@ -1,6 +1,11 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.notFoundHandler = exports.errorHandler = void 0;
+const dotenv_1 = __importDefault(require("dotenv"));
+dotenv_1.default.config();
 const errorHandler = (err, _req, res, _next) => {
     console.error("Error:", err);
     const statusCode = res.statusCode !== 200 ? res.statusCode : 500;

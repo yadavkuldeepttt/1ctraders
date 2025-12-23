@@ -298,7 +298,7 @@ export default function TasksPage() {
 
                 {task.type === "ad" && task.status !== "completed" && task.userStatus !== "completed" && (
                   <div className="mb-4 p-4 bg-primary/10 border border-primary/30 rounded-lg">
-                    <div className="aspect-video bg-background/50 rounded-lg flex items-center justify-center mb-3 relative overflow-hidden">
+                    <div className=" bg-background/50 rounded-lg flex items-center justify-center mb-3 relative overflow-hidden">
                       <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-primary/5"></div>
                       <div className="relative z-10 text-center">
                         <PlayCircle className="w-16 h-16 text-primary mx-auto mb-2" />

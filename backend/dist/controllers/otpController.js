@@ -7,6 +7,8 @@ exports.verifyLoginOTP = exports.sendLoginOTP = exports.verifyVerificationOTP = 
 const otpService_1 = require("../services/otpService");
 const UserModel_1 = require("../db/models/UserModel");
 const mongoose_1 = __importDefault(require("mongoose"));
+const dotenv_1 = __importDefault(require("dotenv"));
+dotenv_1.default.config();
 /**
  * Send OTP for crypto payment
  * POST /api/otp/send

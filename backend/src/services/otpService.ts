@@ -1,4 +1,7 @@
 import nodemailer from "nodemailer"
+import dotenv from "dotenv"
+
+dotenv.config()
 
 // Store OTPs in memory (in production, use Redis)
 const otpStore = new Map<string, { code: string; expiresAt: number; email: string }>()

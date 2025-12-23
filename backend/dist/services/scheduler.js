@@ -1,8 +1,13 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.startScheduler = startScheduler;
 const dailyRoiService_1 = require("./dailyRoiService");
 const pointsConversionService_1 = require("./pointsConversionService");
+const dotenv_1 = __importDefault(require("dotenv"));
+dotenv_1.default.config();
 /**
  * Schedule daily ROI processing
  * Runs every day at a specified time (default: 00:00 UTC)

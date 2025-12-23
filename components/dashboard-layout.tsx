@@ -232,7 +232,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 <Button variant="ghost" size="icon" className="relative">
                   <Bell className="w-5 h-5" />
                   {unreadNotificationCount > 0 && (
-                    <span className="absolute top-1 right-1 bg-primary text-primary-foreground text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                    <span className="absolute top-1 -right-1 bg-primary text-primary-foreground text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
                       {unreadNotificationCount > 9 ? "9+" : unreadNotificationCount}
                     </span>
                   )}

@@ -1,7 +1,16 @@
 import axios from "axios"
-import crypto from "crypto"
+import * as crypto from "crypto"
+import dotenv from "dotenv";
 
-const NOWPAYMENTS_API_URL = "https://api.nowpayments.io/v1"
+dotenv.config();
+
+
+
+// Use sandbox/testnet for testing, mainnet for production
+const USE_TESTNET = process.env.NOWPAYMENTS_USE_TESTNET === "true" || process.env.NODE_ENV === "development"
+const NOWPAYMENTS_API_URL = USE_TESTNET 
+  ? "https://api-sandbox.nowpayments.io/v1" // Sandbox/testnet URL
+  : "https://api.nowpayments.io/v1" // Production/mainnet URL
 const API_KEY = process.env.NOWPAYMENTS_API_KEY || ""
 const IPN_SECRET_KEY = process.env.NOWPAYMENTS_IPN_SECRET_KEY || ""
 
@@ -48,18 +57,21 @@ export async function createPayment(
       paymentData.customer_email = customerEmail
     }
 
-    console.log(paymentData);
-    console.log(API_KEY);
-    console.log(NOWPAYMENTS_API_URL);
-    console.log(paymentData);
-    console.log(paymentData);
+    // Log environment info (helpful for debugging)
+    if (USE_TESTNET) {
+      console.log("🧪 NOWPayments TESTNET/SANDBOX mode enabled")
+      console.log("📝 API URL:", NOWPAYMENTS_API_URL)
+    } else {
+      console.log("💰 NOWPayments MAINNET mode")
+      console.log("📝 API URL:", NOWPAYMENTS_API_URL)
+    }
 
     const response = await axios.post(
       `${NOWPAYMENTS_API_URL}/payment`,
       paymentData,
       {
         headers: {
-          "x-api-key": "E612Y7V-B354HZS-GCF5T47-KHGDN18",
+          "x-api-key": API_KEY || "E612Y7V-B354HZS-GCF5T47-KHGDN18",
           "Content-Type": "application/json",
         },
       }
@@ -79,7 +91,7 @@ export async function getPaymentStatus(paymentId: string): Promise<{ success: bo
   try {
     const response = await axios.get(`${NOWPAYMENTS_API_URL}/payment/${paymentId}`, {
       headers: {
-        "x-api-key": API_KEY,
+        "x-api-key": API_KEY || "E612Y7V-B354HZS-GCF5T47-KHGDN18",
       },
     })
 
@@ -116,7 +128,7 @@ export async function getAvailableCurrencies(): Promise<{ success: boolean; data
   try {
     const response = await axios.get(`${NOWPAYMENTS_API_URL}/currencies`, {
       headers: {
-        "x-api-key": API_KEY,
+        "x-api-key": API_KEY || "E612Y7V-B354HZS-GCF5T47-KHGDN18",
       },
     })
 

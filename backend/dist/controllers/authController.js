@@ -4,10 +4,13 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.updateTwoFactor = exports.changePassword = exports.updateProfile = exports.verifyToken = exports.getProfile = exports.login = exports.register = void 0;
+const dotenv_1 = __importDefault(require("dotenv"));
+dotenv_1.default.config();
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const mongoose_1 = __importDefault(require("mongoose"));
 const UserModel_1 = require("../db/models/UserModel");
+const ReferralModel_1 = require("../db/models/ReferralModel");
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production";
 const register = async (req, res) => {
     try {
@@ -43,6 +46,39 @@ const register = async (req, res) => {
             emailVerified: false,
             twoFactorEnabled: false,
         });
+        // Create referral record if referral code was provided
+        if (referralCode) {
+            const referrer = await UserModel_1.UserModel.findOne({ referralCode: referralCode });
+            if (referrer) {
+                // Create level 1 referral (direct)
+                await ReferralModel_1.ReferralModel.create({
+                    referrerId: new mongoose_1.default.Types.ObjectId(referrer._id),
+                    referredUserId: new mongoose_1.default.Types.ObjectId(newUser._id),
+                    level: 1,
+                    totalEarnings: 0,
+                    status: "active",
+                });
+                // Create referral records for levels 2-12 (upline chain)
+                let currentReferrer = referrer;
+                for (let level = 2; level <= 12; level++) {
+                    if (!currentReferrer.referredBy)
+                        break;
+                    const uplineReferrer = await UserModel_1.UserModel.findOne({
+                        referralCode: currentReferrer.referredBy,
+                    });
+                    if (!uplineReferrer)
+                        break;
+                    await ReferralModel_1.ReferralModel.create({
+                        referrerId: new mongoose_1.default.Types.ObjectId(uplineReferrer._id),
+                        referredUserId: new mongoose_1.default.Types.ObjectId(newUser._id),
+                        level,
+                        totalEarnings: 0,
+                        status: "active",
+                    });
+                    currentReferrer = uplineReferrer;
+                }
+            }
+        }
         // Create JWT token
         const token = jsonwebtoken_1.default.sign({ userId: newUser._id.toString(), email: newUser.email }, JWT_SECRET, { expiresIn: "7d" });
         // Convert to JSON to get transformed document

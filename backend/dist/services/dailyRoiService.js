@@ -45,27 +45,26 @@ async function distributeReferralCommissions(investment, roiAmount) {
     if (!investor)
         return;
     // Get referral chain up to 12 levels
+    // Build chain: Level 1 = direct referrer, Level 2 = who referred the referrer, etc.
     const referralChain = [];
-    let currentUserId = investor.referredBy;
-    // Build referral chain (who referred the investor)
-    for (let level = 1; level <= 12 && currentUserId; level++) {
-        // Find who referred currentUserId
-        const currentUser = await UserModel_1.UserModel.findOne({ referralCode: currentUserId });
-        if (!currentUser)
+    // Level 1: Direct referrer (who referred the investor)
+    let currentUser = investor;
+    for (let level = 1; level <= 12; level++) {
+        // Get the referral code of who referred current user
+        const referrerCode = currentUser.referredBy;
+        if (!referrerCode)
             break;
-        const referral = await ReferralModel_1.ReferralModel.findOne({
-            referredUserId: currentUser._id.toString(),
-        });
-        if (!referral)
-            break;
-        const referrer = await UserModel_1.UserModel.findById(referral.referrerId);
+        // Find the referrer user by their referral code
+        const referrer = await UserModel_1.UserModel.findOne({ referralCode: referrerCode });
         if (!referrer)
             break;
+        // Add to chain
         referralChain.push({
             userId: referrer._id.toString(),
             level,
         });
-        currentUserId = referrer.referredBy;
+        // Move up the chain
+        currentUser = referrer;
     }
     // Distribute commissions to referrers
     let totalCommissionPercentage = 0;

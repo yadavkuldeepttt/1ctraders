@@ -25,6 +25,13 @@ This comprehensive guide covers testing the complete investment flow from plan s
 
 2. **Environment Variables:**
    - Ensure MongoDB is running and connected
+   - **NOWPayments Configuration (IMPORTANT for Testing):**
+     - `NOWPAYMENTS_USE_TESTNET=true` - Use testnet/sandbox (default in development)
+     - `NOWPAYMENTS_API_KEY` - Your NOWPayments API key (testnet or mainnet)
+     - `NOWPAYMENTS_IPN_SECRET_KEY` - IPN secret key for webhook verification
+     - **Testnet Mode**: Automatically enabled when `NODE_ENV=development`
+     - **Testnet URL**: `https://api-sandbox.nowpayments.io/v1` (no real money)
+     - **Mainnet URL**: `https://api.nowpayments.io/v1` (real money - use with caution!)
    - For email OTP (optional in dev):
      - `GMAIL_USER` - Your Gmail address
      - `GMAIL_APP_PASSWORD` - Gmail app password

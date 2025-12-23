@@ -13,27 +13,20 @@ export const getAvailableTasks = async (req: Request, res: Response): Promise<Co
       return res.status(400).json({ error: "Invalid user ID" })
     }
 
-    const completedUserTasks = await UserTaskModel.find({
-      userId: new mongoose.Types.ObjectId(userId),
-      status: "completed",
-    })
-    const completedTaskIds = completedUserTasks.map((ut) => ut.taskId)
-
+    // Get all active tasks
     const tasks = await TaskModel.find({ isActive: true })
-    const availableTasks = tasks
-      .filter((task) => !completedTaskIds.some((id) => id.toString() === task._id.toString()))
-      .map((task) => task.toJSON())
 
-    // Get user task statuses
+    // Get user task statuses for all tasks
     const userTasks = await UserTaskModel.find({
       userId: new mongoose.Types.ObjectId(userId),
       taskId: { $in: tasks.map((t) => t._id) },
     })
 
-    const tasksWithStatus = availableTasks.map((task) => {
-      const userTask = userTasks.find((ut) => ut.taskId.toString() === task.id)
+    // Return all tasks with their completion status (don't filter out completed ones)
+    const tasksWithStatus = tasks.map((task) => {
+      const userTask = userTasks.find((ut) => ut.taskId.toString() === task._id.toString())
       return {
-        ...task,
+        ...task.toJSON(),
         userStatus: userTask?.status || "available",
         progress: userTask?.progress,
       }
