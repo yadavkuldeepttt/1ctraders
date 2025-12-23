@@ -57,7 +57,7 @@ export default function AdminTasksPage() {
 
     try {
       setLoading(true)
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3010/api"
       const queryParams = new URLSearchParams()
       if (filter.isActive !== undefined) queryParams.append("isActive", filter.isActive)
       if (filter.type) queryParams.append("type", filter.type)
@@ -122,7 +122,7 @@ export default function AdminTasksPage() {
     if (!token) return
 
     try {
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3010/api"
       const payload: any = {
         title: formData.title,
         description: formData.description,
@@ -179,7 +179,7 @@ export default function AdminTasksPage() {
     if (!token) return
 
     try {
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3010/api"
       const response = await fetch(`${API_BASE_URL}/admin/tasks/${taskId}`, {
         method: "DELETE",
         headers: {

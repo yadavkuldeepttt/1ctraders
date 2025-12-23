@@ -26,7 +26,7 @@ export default function AdminUsersPage() {
 
       try {
         setLoading(true)
-        const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"
+        const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3010/api"
         const queryParams = new URLSearchParams()
         if (statusFilter !== "all") {
           queryParams.append("status", statusFilter)
@@ -66,7 +66,7 @@ export default function AdminUsersPage() {
     if (!token) return
 
     try {
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3010/api"
       const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/status`, {
         method: "PATCH",
         headers: {

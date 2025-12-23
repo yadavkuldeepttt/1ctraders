@@ -20,7 +20,7 @@ export function AdminRoute({ children }: { children: React.ReactNode }) {
       }
 
       try {
-        const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"
+        const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3010/api"
         // Verify token with backend
         const response = await fetch(`${API_BASE_URL}/admin/auth/profile`, {
           headers: {

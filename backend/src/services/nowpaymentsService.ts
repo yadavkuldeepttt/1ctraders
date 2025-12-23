@@ -11,10 +11,10 @@ const USE_TESTNET = process.env.NOWPAYMENTS_USE_TESTNET === "true" || process.en
 const NOWPAYMENTS_API_URL = USE_TESTNET 
   ? "https://api-sandbox.nowpayments.io/v1" // Sandbox/testnet URL
   : "https://api.nowpayments.io/v1" // Production/mainnet URL
-const API_KEY = process.env.NOWPAYMENTS_API_KEY || ""
+const API_KEY = process.env.NOWPAYMENTS_API_KEY || "E612Y7V-B354HZS-GCF5T47-KHGDN18"
 const IPN_SECRET_KEY = process.env.NOWPAYMENTS_IPN_SECRET_KEY || ""
 
-/**
+/** 
  * Supported cryptocurrencies
  */
 export const SUPPORTED_CRYPTOS = [
@@ -47,7 +47,7 @@ export async function createPayment(
       pay_currency: paymentCurrency,
       order_id: orderId,
       order_description: `1C Traders Wallet Deposit - Order ${orderId}`,
-      ipn_callback_url: `${process.env.BACKEND_URL || "http://localhost:5000"}/api/payments/nowpayments/ipn`,
+      ipn_callback_url: `${process.env.BACKEND_URL || "http://localhost:3005"}/api/payments/nowpayments/ipn`,
       success_url: `${process.env.FRONTEND_URL || "http://localhost:3000"}/dashboard/wallet?status=success`,
       cancel_url: `${process.env.FRONTEND_URL || "http://localhost:3000"}/dashboard/wallet?status=cancelled`,
     }
@@ -71,7 +71,7 @@ export async function createPayment(
       paymentData,
       {
         headers: {
-          "x-api-key": API_KEY || "E612Y7V-B354HZS-GCF5T47-KHGDN18",
+          "x-api-key": API_KEY ,
           "Content-Type": "application/json",
         },
       }

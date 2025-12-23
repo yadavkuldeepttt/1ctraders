@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateTwoFactor = exports.changePassword = exports.updateProfile = exports.verifyToken = exports.getProfile = exports.login = exports.register = void 0;
+exports.resetPassword = exports.verifyResetToken = exports.forgotPassword = exports.updateTwoFactor = exports.changePassword = exports.updateProfile = exports.verifyToken = exports.getProfile = exports.login = exports.register = void 0;
 const dotenv_1 = __importDefault(require("dotenv"));
 dotenv_1.default.config();
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
@@ -11,6 +11,7 @@ const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const mongoose_1 = __importDefault(require("mongoose"));
 const UserModel_1 = require("../db/models/UserModel");
 const ReferralModel_1 = require("../db/models/ReferralModel");
+const passwordResetService_1 = require("../services/passwordResetService");
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production";
 const register = async (req, res) => {
     try {
@@ -269,4 +270,125 @@ const updateTwoFactor = async (req, res) => {
     }
 };
 exports.updateTwoFactor = updateTwoFactor;
+/**
+ * Request password reset - sends reset email
+ */
+const forgotPassword = async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email) {
+            return res.status(400).json({ error: "Email is required" });
+        }
+        // Find user by email
+        const user = await UserModel_1.UserModel.findOne({ email: email.toLowerCase() });
+        // Always return success to prevent email enumeration
+        // But only send email if user exists
+        if (user) {
+            // Generate reset token
+            const resetToken = (0, passwordResetService_1.generateResetToken)();
+            const resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour from now
+            // Save reset token to user
+            user.resetToken = resetToken;
+            user.resetTokenExpiry = resetTokenExpiry;
+            await user.save();
+            // Send password reset email
+            const emailResult = await (0, passwordResetService_1.sendPasswordResetEmail)(user.email, resetToken);
+            if (!emailResult.success) {
+                // Clear the token if email failed
+                user.resetToken = null;
+                user.resetTokenExpiry = null;
+                await user.save();
+                return res.status(500).json({ error: emailResult.error || "Failed to send reset email" });
+            }
+        }
+        // Always return success message (security best practice)
+        res.json({
+            message: "If an account with that email exists, a password reset link has been sent.",
+        });
+    }
+    catch (error) {
+        console.error("Forgot password error:", error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+};
+exports.forgotPassword = forgotPassword;
+/**
+ * Verify reset token
+ */
+const verifyResetToken = async (req, res) => {
+    try {
+        const { token, email } = req.query;
+        if (!token || !email) {
+            return res.status(400).json({ error: "Token and email are required" });
+        }
+        const user = await UserModel_1.UserModel.findOne({
+            email: email.toLowerCase(),
+            resetToken: token,
+        });
+        if (!user) {
+            return res.status(400).json({ error: "Invalid or expired reset token" });
+        }
+        // Check if token has expired
+        if (!user.resetTokenExpiry || user.resetTokenExpiry < new Date()) {
+            // Clear expired token
+            user.resetToken = null;
+            user.resetTokenExpiry = null;
+            await user.save();
+            return res.status(400).json({ error: "Reset token has expired" });
+        }
+        res.json({
+            message: "Reset token is valid",
+            valid: true,
+        });
+    }
+    catch (error) {
+        console.error("Verify reset token error:", error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+};
+exports.verifyResetToken = verifyResetToken;
+/**
+ * Reset password using reset token
+ */
+const resetPassword = async (req, res) => {
+    try {
+        const { token, email, newPassword } = req.body;
+        if (!token || !email || !newPassword) {
+            return res.status(400).json({ error: "Token, email, and new password are required" });
+        }
+        if (newPassword.length < 6) {
+            return res.status(400).json({ error: "Password must be at least 6 characters" });
+        }
+        const user = await UserModel_1.UserModel.findOne({
+            email: email.toLowerCase(),
+            resetToken: token,
+        });
+        if (!user) {
+            return res.status(400).json({ error: "Invalid or expired reset token" });
+        }
+        // Check if token has expired
+        if (!user.resetTokenExpiry || user.resetTokenExpiry < new Date()) {
+            // Clear expired token
+            user.resetToken = null;
+            user.resetTokenExpiry = null;
+            await user.save();
+            return res.status(400).json({ error: "Reset token has expired" });
+        }
+        // Hash new password
+        const hashedPassword = await bcryptjs_1.default.hash(newPassword, 10);
+        // Update password and clear reset token
+        user.password = hashedPassword;
+        user.resetToken = null;
+        user.resetTokenExpiry = null;
+        await user.save();
+        res.json({
+            message: "Password reset successfully",
+        });
+    }
+    catch (error) {
+        console.error("Reset password error:", error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+};
+exports.resetPassword = resetPassword;
 //# sourceMappingURL=authController.js.map

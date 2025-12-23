@@ -10,6 +10,7 @@ import mongoose from "mongoose"
 import type { CreateUserDTO } from "../models/User"
 import { UserModel } from "../db/models/UserModel"
 import { ReferralModel } from "../db/models/ReferralModel"
+import { generateResetToken, sendPasswordResetEmail } from "../services/passwordResetService"
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production"
 
@@ -312,6 +313,147 @@ export const updateTwoFactor = async (req: Request, res: Response): Promise<Cont
     })
   } catch (error) {
     console.error("Update two-factor error:", error)
+    res.status(500).json({ error: "Internal server error" })
+  }
+}
+
+/**
+ * Request password reset - sends reset email
+ */
+export const forgotPassword = async (req: Request, res: Response): Promise<ControllerResponse> => {
+  try {
+    const { email } = req.body
+
+    if (!email) {
+      return res.status(400).json({ error: "Email is required" })
+    }
+
+    // Find user by email
+    const user = await UserModel.findOne({ email: email.toLowerCase() })
+    
+    // Always return success to prevent email enumeration
+    // But only send email if user exists
+    if (user) {
+      // Generate reset token
+      const resetToken = generateResetToken()
+      const resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000) // 1 hour from now
+
+      // Save reset token to user
+      user.resetToken = resetToken
+      user.resetTokenExpiry = resetTokenExpiry
+      await user.save()
+
+      // Send password reset email
+      const emailResult = await sendPasswordResetEmail(user.email, resetToken)
+      
+      if (!emailResult.success) {
+        // Clear the token if email failed
+        user.resetToken = null
+        user.resetTokenExpiry = null
+        await user.save()
+        
+        return res.status(500).json({ error: emailResult.error || "Failed to send reset email" })
+      }
+    }
+
+    // Always return success message (security best practice)
+    res.json({
+      message: "If an account with that email exists, a password reset link has been sent.",
+    })
+  } catch (error) {
+    console.error("Forgot password error:", error)
+    res.status(500).json({ error: "Internal server error" })
+  }
+}
+
+/**
+ * Verify reset token
+ */
+export const verifyResetToken = async (req: Request, res: Response): Promise<ControllerResponse> => {
+  try {
+    const { token, email } = req.query
+
+    if (!token || !email) {
+      return res.status(400).json({ error: "Token and email are required" })
+    }
+
+    const user = await UserModel.findOne({
+      email: (email as string).toLowerCase(),
+      resetToken: token as string,
+    })
+
+    if (!user) {
+      return res.status(400).json({ error: "Invalid or expired reset token" })
+    }
+
+    // Check if token has expired
+    if (!user.resetTokenExpiry || user.resetTokenExpiry < new Date()) {
+      // Clear expired token
+      user.resetToken = null
+      user.resetTokenExpiry = null
+      await user.save()
+      
+      return res.status(400).json({ error: "Reset token has expired" })
+    }
+
+    res.json({
+      message: "Reset token is valid",
+      valid: true,
+    })
+  } catch (error) {
+    console.error("Verify reset token error:", error)
+    res.status(500).json({ error: "Internal server error" })
+  }
+}
+
+/**
+ * Reset password using reset token
+ */
+export const resetPassword = async (req: Request, res: Response): Promise<ControllerResponse> => {
+  try {
+    const { token, email, newPassword } = req.body
+
+    if (!token || !email || !newPassword) {
+      return res.status(400).json({ error: "Token, email, and new password are required" })
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: "Password must be at least 6 characters" })
+    }
+
+    const user = await UserModel.findOne({
+      email: email.toLowerCase(),
+      resetToken: token,
+    })
+
+    if (!user) {
+      return res.status(400).json({ error: "Invalid or expired reset token" })
+    }
+
+    // Check if token has expired
+    if (!user.resetTokenExpiry || user.resetTokenExpiry < new Date()) {
+      // Clear expired token
+      user.resetToken = null
+      user.resetTokenExpiry = null
+      await user.save()
+      
+      return res.status(400).json({ error: "Reset token has expired" })
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10)
+    
+    // Update password and clear reset token
+    user.password = hashedPassword
+    user.resetToken = null
+    user.resetTokenExpiry = null
+    await user.save()
+
+    res.json({
+      message: "Password reset successfully",
+    })
+  } catch (error) {
+    console.error("Reset password error:", error)
     res.status(500).json({ error: "Internal server error" })
   }
 }

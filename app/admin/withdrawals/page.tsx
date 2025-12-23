@@ -23,7 +23,7 @@ export default function AdminWithdrawalsPage() {
 
       try {
         setLoading(true)
-        const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"
+        const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3010/api"
         const response = await fetch(`${API_BASE_URL}/admin/withdrawals/pending`, {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -57,7 +57,7 @@ export default function AdminWithdrawalsPage() {
     if (!token) return
 
     try {
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3010/api"
       const response = await fetch(`${API_BASE_URL}/admin/withdrawals/${transactionId}/approve`, {
         method: "POST",
         headers: {

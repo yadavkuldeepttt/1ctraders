@@ -21,7 +21,7 @@ export default function AdminLoginPage() {
     setError(null)
 
     try {
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3010/api"
       const response = await fetch(`${API_BASE_URL}/admin/auth/login`, {
         method: "POST",
         headers: {

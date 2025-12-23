@@ -17,6 +17,8 @@ export interface User {
     status: "active" | "suspended" | "pending";
     emailVerified: boolean;
     twoFactorEnabled: boolean;
+    resetToken?: string | null;
+    resetTokenExpiry?: Date | null;
     createdAt: Date;
     updatedAt: Date;
 }

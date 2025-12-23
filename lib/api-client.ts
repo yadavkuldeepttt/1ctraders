@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3010/api"
 
 export interface ApiResponse<T> {
   data?: T
@@ -68,6 +68,30 @@ class ApiClient {
     return this.request<{ user: any; token: string }>("/auth/login", {
       method: "POST",
       body: JSON.stringify(credentials),
+    })
+  }
+
+  async forgotPassword(email: string) {
+    return this.request<{ message: string }>("/auth/forgot-password", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    })
+  }
+
+  async verifyResetToken(token: string, email: string) {
+    const queryParams = new URLSearchParams({
+      token: token,
+      email: email,
+    })
+    return this.request<{ message: string; valid: boolean }>(`/auth/verify-reset-token?${queryParams.toString()}`, {
+      method: "GET",
+    })
+  }
+
+  async resetPassword(token: string, email: string, newPassword: string) {
+    return this.request<{ message: string }>("/auth/reset-password", {
+      method: "POST",
+      body: JSON.stringify({ token, email, newPassword }),
     })
   }
 

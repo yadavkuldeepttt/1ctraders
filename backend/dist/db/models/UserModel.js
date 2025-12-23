@@ -124,6 +124,14 @@ const UserSchema = new mongoose_1.Schema({
         type: Boolean,
         default: false,
     },
+    resetToken: {
+        type: String,
+        default: null,
+    },
+    resetTokenExpiry: {
+        type: Date,
+        default: null,
+    },
 }, {
     timestamps: true,
     toJSON: {
