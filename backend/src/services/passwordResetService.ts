@@ -116,4 +116,3 @@ export async function sendPasswordResetEmail(
     return { success: false, error: error.message || "Failed to send password reset email" }
   }
 }
-

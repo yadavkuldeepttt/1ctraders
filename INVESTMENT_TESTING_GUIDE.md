@@ -161,10 +161,11 @@ The system automatically uses testnet when:
      - `NOWPAYMENTS_IPN_SECRET_KEY` - **Use SANDBOX IPN secret** (get from sandbox dashboard)
      - **Testnet URL**: `https://api-sandbox.nowpayments.io/v1` ✅ (no real money - safe for testing)
      - **Mainnet URL**: `https://api.nowpayments.io/v1` ⚠️ (real money - only for production!)
-   - For email OTP (optional in dev):
-     - `GMAIL_USER` - Your Gmail address
-     - `GMAIL_APP_PASSWORD` - Gmail app password
-   - **Note:** In development mode, OTP is logged to console if email is not configured
+   - **Email Service Configuration (Resend):**
+     - `RESEND_API_KEY` - Your Resend API key (get from https://resend.com/api-keys)
+     - `RESEND_FROM_EMAIL` - Email address to send from (optional, defaults to onboarding@resend.dev)
+     - **Note:** In development mode, OTP is logged to console if Resend API key is not configured
+     - **Note:** Gmail SMTP logic is commented out - using Resend instead
 
 ### Frontend Setup
 1. **Start the frontend:**
